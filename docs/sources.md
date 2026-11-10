@@ -106,6 +106,9 @@ Daily coverage is high (average 86–99%). Days below 75% exist on most sensors 
 - Mapping rule (`missing_day_rule: last_available`): Silver builds one row per calendar day, and a
   day without a rate takes the last earlier published rate (forward fill), with flag `is_filled = true`.
   Because we load the full history, the first days of any taxi month always have an earlier rate.
+- **Old holiday rows:** 62 rows (1999–2012) have an empty `OBS_VALUE` with `OBS_STATUS = 'H'`, i.e. the ECB
+  published the holiday as a row without a rate. Silver sends them to quarantine (`value_null`) and the calendar
+  fill gives those days the last earlier rate, exactly like a weekend.
 - Conversion: `amount_eur = amount_usd / usd_per_eur`.
 
 ## Bronze contract for API tables

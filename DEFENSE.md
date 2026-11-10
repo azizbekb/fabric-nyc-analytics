@@ -197,3 +197,18 @@ Runtime 1.3 qo'llab-quvvatlashdan chiqarilmoqda (EOSA), standart runtime endi 2.
 1. **Yangi quarantine qoidasi** (masalan `tip_amount < 0`): `rejection_rules()` ro'yxatiga `("negative_tip", F.col("tip_amount") < 0)` qatorini qo'shing → `tests/test_taxi.py` ga qator qo'shing → `pytest`.
 2. **Yangi ustun** (masalan `pickup_weekday`): `add_trip_attributes` ichiga `"pickup_weekday": F.dayofweek(pickup)` qo'shing.
 3. **Coverage chegarasini o'zgartirish:** `openaq.min_coverage_pct` ni 90 qiling → `pytest` (test chegarani config'dan oladi).
+
+---
+
+## Gold: nega to'liq qayta yuklash (full reload)?
+
+**Savol:** "Nega TRUNCATE + INSERT, incremental emas? Ma'lumot ko'paysa nima o'zgaradi?"
+
+**Javob:**
+- Hozir ma'lumot kichik: `FactTaxiDaily` ≈ 7 ming qator/oy, 6 oyda ≈ 42 ming qator. To'liq qayta yuklash bir necha soniya oladi.
+- To'liq qayta yuklash **eng sodda va xavfsiz** usul: qayta ishga tushirsak, natija bir xil chiqadi (idempotent). Dublikat paydo bo'lmaydi, Silver'da tuzatilgan qoida esa eski kunlarga ham avtomatik qo'llanadi.
+- **Ma'lumot ko'paysa** (masalan, ko'p yillik taxi), endi faqat yangi qismni yuklaymiz:
+  1. **Oy bo'yicha almashtirish:** `DELETE FROM dbo.FactTaxiDaily WHERE date_key BETWEEN <oy boshi> AND <oy oxiri>`, keyin faqat shu oy uchun `INSERT ... SELECT ... WHERE pickup_date` shu oy ichida. Oy ro'yxati config'dan keladi (`taxi.months`, yoki faqat yangi qo'shilgan oy).
+  2. Yoki **`MERGE`** (Fabric Warehouse'da GA): kalit `(date_key, zone_id)`. Mavjud bo'lsa `UPDATE`, bo'lmasa `INSERT`.
+  3. Silver ham shunday: butun jadvalni emas, faqat yangi oyning partition'ini qayta yozish (Delta `replaceWhere`).
+- Taxi uchun oy bo'yicha almashtirish ma'qulroq: TLC fayli **butun oy uchun** qayta chiqishi mumkin, demak oyni to'liq almashtirish to'g'ri. Kichik dimension jadvallar (zona, FX, GDP) esa doim to'liq yuklanaveradi.

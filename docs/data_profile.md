@@ -108,3 +108,21 @@ Quarantine: 18 / 56 / 16 / 6,896 / 8 (same as the profile). `is_void` = 61,340, 
 - Only one month was profiled. Column names and types must be checked for every configured month
   when the Silver notebook unions them.
 - The 429 non-zero-sum negative pairs are counted under `negative_amount` (only their negative row).
+
+## Gold check (local prototype)
+
+`python scripts/check_gold.py 2024-01` rebuilds Silver from the raw file, aggregates it the same way as
+`dbo.load_fact_taxi_daily` (PySpark copy of the SQL, used only for this check) and joins the ECB rates.
+
+| Check | Result (2024-01) |
+|---|---|
+| Fact trips = Silver non-void trips | 2,896,290 = 2,896,290 |
+| Fact total_amount_usd = Silver | 79,563,881.08 = 79,563,881.08 |
+| Grain (date, zone) unique | 6,931 rows, no duplicates |
+| All fact days inside the file month | yes, 31 days |
+| Edge days within 0.5–2× of the median day (94,775) | 01-01: 0.83, 01-02: 0.78, 01-03: 0.85, 01-29: 0.87, 01-30: 1.05, 01-31: 1.05 |
+| Every fact day has a USD/EUR rate | yes (01-01 holiday uses the 2023-12-29 rate 1.105, `is_filled`) |
+
+Without the Silver rules, the raw file would add fake days to a daily chart: 2023-12-31 (10 trips),
+2024-02-01 (3), plus 2002-12-31 and 2009-01-01. The lower 01-01 and 01-02 values are real (holiday period),
+not partial data: each day has all its hours, because only out-of-month rows are removed.

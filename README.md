@@ -54,6 +54,13 @@ The script activates `.venv` (Python + `JAVA_HOME`) and runs `pytest`. Running p
 without the activated venv fails with errors at Spark start-up, because Java is not found.
 Tests load the library notebooks exactly as Fabric runs them (see `tests/notebook_loader.py`).
 
+### Local Gold check
+
+```bash
+source .venv/bin/activate
+python scripts/check_gold.py 2024-01   # needs data/yellow_tripdata_2024-01.parquet and data/ecb_fx.csv
+```
+
 ### Fabric runtime
 
 The workspace uses **Fabric Runtime 2.0** (Spark 4.1, Python 3.13, Delta 4.2). Runtime 1.3 is in
