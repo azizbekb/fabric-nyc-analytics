@@ -57,15 +57,20 @@ def main(month):
     median = sorted(d.trips for d in days)[len(days) // 2]
     edges = days[:EDGE_DAYS] + days[-EDGE_DAYS:]
 
+    edge_dates = [d.pickup_date for d in edges]
+    hours = dict(silver.filter(~F.col("is_void") & F.col("pickup_date").isin(edge_dates))
+                 .groupBy("pickup_date").agg(F.countDistinct("pickup_hour")).collect())
+
     print(f"fact rows: {fact.count()}, days: {len(days)}, median trips/day: {median}")
     for d in edges:
-        print(f"  {d.pickup_date}  trips={d.trips}  ratio_to_median={d.trips / median:.2f}")
+        print(f"  {d.pickup_date}  trips={d.trips}  ratio_to_median={d.trips / median:.2f}  hours_with_trips={hours[d.pickup_date]}")
 
     results = [
         check("trips: fact == silver (non-void)", totals.n == trips_silver.n, f"{totals.n} vs {trips_silver.n}"),
         check("total_amount_usd: fact == silver", abs(totals.usd - trips_silver.usd) < 0.01, f"{totals.usd:,.2f} vs {trips_silver.usd:,.2f}"),
         check("grain unique (date, zone)", fact.count() == fact.select("pickup_date", "zone_id").distinct().count()),
         check("all days inside the file month", all(d.pickup_date.strftime("%Y-%m") == month for d in days)),
+        check("edge days are complete (trips in all 24 hours)", all(h == 24 for h in hours.values())),
         check("no fake dip/spike on edge days", all(EDGE_RATIO[0] <= d.trips / median <= EDGE_RATIO[1] for d in edges)),
         check("every fact row has an FX rate", fact.filter(F.col("usd_per_eur").isNull()).count() == 0),
         check("clean_trips <= trips", fact.filter(F.col("clean_trips") > F.col("trips")).count() == 0),

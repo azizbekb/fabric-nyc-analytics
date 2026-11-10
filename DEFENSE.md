@@ -212,3 +212,100 @@ Runtime 1.3 qo'llab-quvvatlashdan chiqarilmoqda (EOSA), standart runtime endi 2.
   2. Yoki **`MERGE`** (Fabric Warehouse'da GA): kalit `(date_key, zone_id)`. Mavjud bo'lsa `UPDATE`, bo'lmasa `INSERT`.
   3. Silver ham shunday: butun jadvalni emas, faqat yangi oyning partition'ini qayta yozish (Delta `replaceWhere`).
 - Taxi uchun oy bo'yicha almashtirish ma'qulroq: TLC fayli **butun oy uchun** qayta chiqishi mumkin, demak oyni to'liq almashtirish to'g'ri. Kichik dimension jadvallar (zona, FX, GDP) esa doim to'liq yuklanaveradi.
+
+---
+
+## Fabric setup (Phase 0–1 rejasi) — `docs/setup_fabric.md`
+
+### Fayllar
+- **`docs/setup_fabric.md`**: Phase 0 (capacity, workspace, Runtime 2.0, lakehouse'lar, warehouse, Git) va Phase 1 (pipeline, dataflow'lar) uchun click-by-click qo'llanma. Har bir menyu nomi Microsoft Learn bilan tekshirilgan, M kod draft'lari ham shu yerda.
+- **`config/sources.json`** (yangilandi): har bir manbada `base_url` + `path` bor, chunki pipeline'dagi HTTP connection "base URL + relative URL" bilan ishlaydi. Yangi bo'limlar: `repo`, `warehouse`, `gold.load_procedures`.
+
+### Asosiy qarorlar
+- **2 ta Lakehouse (`lh_bronze`, `lh_silver`) + 1 ta Warehouse (`wh_gold`).** Har bir layer alohida item bo'lgani uchun chegaralar aniq ko'rinadi va ruxsatlarni layer bo'yicha berish mumkin.
+- **Lakehouse schemas o'chirilgan.** Schema'li Lakehouse'da Dataflow destination uchun qo'shimcha "Navigate using full hierarchy" opsiyasi kerak bo'ladi. Schema'siz ham Warehouse jadvalni `lh_silver.dbo.<jadval>` deb ko'radi.
+- **Config pipeline'ga qanday yetadi:** birinchi Copy activity `sources.json` ni GitHub'dan `lh_bronze/Files/config/` ga ko'chiradi. Keyin Lookup uni o'qiydi, ForEach esa `taxi.months` bo'yicha aylanadi. Config faylining manzili yagona "bootstrap" literal, chunki config o'zini o'qilishidan oldin ko'rsata olmaydi.
+- **OpenAQ kaliti:** Fabric'ning "Web API" credential'i kalitni URL ichida yuboradi, OpenAQ esa kalitni faqat header'da qabul qiladi. Shuning uchun zanjir quyidagicha:
+  1. kalit **Azure Key Vault**'da saqlanadi;
+  2. `nb_get_openaq_key` notebook'i uni `notebookutils.credentials.getSecret` bilan oladi (**Secure output**);
+  3. qiymat Dataflow'ning majburiy parametri `OpenAQApiKey` ga uzatiladi (**Secure input**).
+
+  Natijada kalit na Git'da, na log'larda ko'rinadi.
+
+### Asosiy tushunchalar
+- **Lakehouse vs Warehouse:** Lakehouse'da fayllar va Delta jadvallar bo'ladi va asosan Spark bilan ishlanadi; SQL endpoint faqat o'qish uchun. Warehouse esa to'liq T-SQL beradi (CREATE, INSERT, UPDATE, procedure). Ikkalasi ham ma'lumotni OneLake'da Delta formatida saqlaydi.
+- **Pipeline vs Dataflow Gen2:** Pipeline **orkestratsiya** qiladi: fayl ko'chirish, tartib, ForEach, schedule. Dataflow Gen2 esa **Power Query** bilan ma'lumotni o'zgartiradi: API'dan JSON yoki CSV olib, uni jadvalga aylantiradi.
+- **Power Query M asoslari:** `let ... in` ichida har bir qadam nomlanadi. `Web.Contents` so'rov yuboradi, `Json.Document` va `Csv.Document` javobni o'qiydi. `List.Generate` sahifalab (paging) olish uchun ishlatiladi, `Table.FromRecords` esa yozuvlardan jadval yasaydi. M ham Spark kabi "lazy": qiymat kerak bo'lgandagina hisoblanadi.
+- **Secure input/output:** activity log'ida kirish yoki chiqish qiymati yashiriladi (masalan, API kalit).
+
+### Tuzoqlar (himoyada aytish foydali)
+- Lakehouse destination **DateTimeZone** tipini qabul qilmaydi, shuning uchun `load_ts` UTC `datetime` bo'ladi.
+- Git'dan **Update all** qilingandan keyin Dataflow'ni bir marta ochib, **saqlash** kerak, aks holda refresh eski versiya bilan ishlaydi.
+- Dataflow destination jadval nomini parametr qilib bo'lmaydi, uni UI'da yozamiz. U config'dagi nom bilan bir xil bo'lishi kerak.
+- M'da sonlarni `en-US` formatida matnga aylantiramiz (`Num`), aks holda 40.7128 qiymati "40,7128" bo'lib qolishi mumkin.
+
+---
+
+## Gold layer (Phase 3 draft) — `drafts/warehouse/`
+
+### Fayllar
+- **`gold_ddl.sql`**: 5 ta dimension va 2 ta fact jadval, kalitlar bilan (`NOT ENFORCED`).
+- **`gold_load.sql`**: har jadval uchun bitta procedure (`load_dim_date`, …, `load_fact_taxi_daily`). Har biri jadvalni to'liq qayta yuklaydi (`TRUNCATE + INSERT`).
+- **`config/sources.json` → `gold.load_procedures`**: procedure'lar tartibi. Pipeline shu ro'yxat bo'yicha ketma-ket (Sequential) ForEach qiladi.
+
+### Star schema
+```
+             DimDate ─────┬──────────────┐
+                │          │              │
+DimZone ── FactTaxiDaily   FactAirQualityDaily ── DimLocation ── (zone_id) DimZone
+                │
+              DimFX (kun bo'yicha kurs)      DimGDP (yil bo'yicha)
+```
+- **Fact** jadvalda o'lchovlar (raqamlar) bor: trips, summalar, o'rtacha qiymatlar. Fact uzun bo'ladi va ko'p qator saqlaydi.
+- **Dimension** jadvalda tavsif bor: sana, zona nomi, borough. Dimension qisqa bo'ladi, unda filtr va guruhlash uchun atributlar saqlanadi.
+- **Grain**: fact jadvaldagi bitta qator nimani anglatishi. `FactTaxiDaily` uchun bu "kun × pickup zona", `FactAirQualityDaily` uchun "kun × monitor × pollutant".
+
+### Muhim qarorlar
+- **Fabric T-SQL cheklovlari:** `nvarchar`, `datetime`, `tinyint` yo'q, ularning o'rniga `varchar`, `date`, `smallint`. PK/FK faqat `ALTER TABLE … NOT ENFORCED` bilan qo'shiladi: kalit tekshirilmaydi, lekin model uchun hujjat va bog'liqlik vazifasini bajaradi. Recursive CTE ham yo'q, shuning uchun DimDate `GENERATE_SERIES` bilan quriladi.
+- **FX taxi revenue'ga qanday ulanadi:** avval taxi kun × zona bo'yicha agregatsiya qilinadi, keyin `silver_fx_daily` bilan **sana bo'yicha** join qilinadi. Formula: `total_amount_eur = total_amount_usd / usd_per_eur`. Dam olish kunlarida oxirgi mavjud kurs olinadi (`is_filled`).
+- **Void juftliklar trip emas** (`is_void = 0` filtri). Outlier'lar trip sifatida hisoblanadi, lekin o'rtacha qiymatlarga kirmaydi. `clean_trips` ustuni Power BI'da to'g'ri tortilgan o'rtacha (weighted average) hisoblash uchun kerak.
+- **Xavf:** Warehouse Git'da database project sifatida saqlanadi, lekin Microsoft hujjatiga ko'ra Warehouse ↔ Lakehouse SQL endpoint cross-item bog'liqligi hali to'liq qo'llab-quvvatlanmaydi. Commit muvaffaqiyatsiz bo'lsa, zaxira yo'l bor: o'sha SQL'ni pipeline'ning **Script** activity'si orqali ishga tushiramiz.
+
+---
+
+## Lokal Gold tekshiruvi — `scripts/check_gold.py`
+
+`python scripts/check_gold.py 2024-01` buyrug'i Silver'ni quradi, uni Gold SQL'i bilan bir xil agregatsiya qiladi va 8 ta tekshiruvni bajaradi:
+- jamilar Silver bilan teng: 2 896 290 trip va $79 563 881.08;
+- (kun, zona) grain'i takrorlanmaydi;
+- barcha kunlar fayl oyi ichida;
+- chetki kunlarda 24 soatning hammasi bor;
+- chetki kunlarda soxta pik yoki tushish yo'q;
+- har kun uchun EUR kursi bor;
+- `clean_trips ≤ trips`.
+
+Biror tekshiruv o'tmasa, skript `exit 1` bilan tugaydi.
+
+### "Nega 1–2 yanvar past?" (grafik savoli)
+- **Javob:** bu **haqiqiy ma'lumot**, qisman yuklanish emas. 1-yanvar Yangi yil bayrami (dushanba), 2-yanvar esa bayramdan keyingi kun, shahar hali to'liq ishga qaytmagan.
+- **Isbot (`check_gold.py`):**
+  1. 01-01 va 01-02 kunlarida **24 soatning hammasida** safar bor. Qisman yuklangan kunda soatlar kam bo'lardi (masalan, faqat 23:00–23:59).
+  2. Ularning median kunga nisbati 0.83 va 0.78. Bu soxta kun emas: masalan, 2023-12-31 kunida jami 10 ta trip bo'lardi, bu median'ning 0.0001 qismi.
+  3. Xuddi shunday "past" kunlar boshqa joyda ham bor: yakshanba 01-07 (67 543 trip) va Martin Luther King kuni 01-15 (77 033 trip). Bu bayram va dam olish kunlari uchun odatiy holat.
+- Soxta kunlar (2023-12-31, 2024-02-01, 2002, 2009) faqat xom faylda bor. Silver ularni `pickup_outside_file_month` sababi bilan quarantine'ga yuboradi.
+
+### Ehtimoliy savollar
+1. **Fact va dimension farqi nima?** Fact'da o'lchovlar (raqamlar, ko'p qator), dimension'da tavsif (filtr va guruhlash uchun atributlar).
+2. **Nega PK/FK `NOT ENFORCED`?** Fabric Warehouse kalitlarni faqat shu rejimda qabul qiladi. Ma'lumot to'g'riligini load mantiqi ta'minlaydi, kalitlar esa model va hujjat uchun.
+3. **EUR summa qanday hisoblanadi?** USD summa o'sha kunning `usd_per_eur` kursiga bo'linadi. Dam olish kunida juma kungi kurs ishlatiladi.
+4. **Pipeline'da kalit qanday himoyalangan?** Kalit Key Vault'da saqlanadi va notebook uni `getSecret` bilan oladi. Activity'larda Secure output/input yoqilgan, Git'da faqat `set-at-runtime` degan placeholder turadi.
+5. **Gold jamilari to'g'ri ekanini qanday bilasiz?** `check_gold.py` fact jamilarini Silver bilan solishtiradi (2 896 290 = 2 896 290) va grain'ni tekshiradi.
+
+### Live change mashqlari
+1. **FactTaxiDaily'ga yangi ustun (`total_tip_usd`) qo'shish:**
+   - `gold_ddl.sql`: `total_tip_usd decimal(18, 2) NULL` qatorini qo'shing (mavjud jadval uchun `ALTER TABLE dbo.FactTaxiDaily ADD total_tip_usd decimal(18,2) NULL;`);
+   - `load_fact_taxi_daily`: ichki SELECT'ga `CAST(SUM(t.tip_amount) AS decimal(18, 2)) AS total_tip_usd`, INSERT ro'yxatiga esa ustun nomini qo'shing;
+   - `check_gold.py` dagi `fact_taxi_daily` ga `F.sum("tip_amount")` ni qo'shing;
+   - pipeline'ni ishga tushiring.
+2. **Kunlikdan soatlikka o'tish:** `GROUP BY` ga `t.pickup_hour` ni qo'shing, yangi `hour` ustuni yarating va grain'ni "kun × soat × zona" deb o'zgartiring. Data dictionary'ni ham yangilang. Silver'da `pickup_hour` allaqachon bor.
+3. **Yangi Gold jadval qo'shish (extendability):** `gold_ddl.sql` ga yangi `CREATE TABLE`, `gold_load.sql` ga yangi `load_<nom>` procedure yozing va `config/sources.json` → `gold.load_procedures` ro'yxatiga nomini qo'shing. Pipeline'ni o'zgartirish shart emas.
