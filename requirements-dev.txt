@@ -1,7 +1,8 @@
-# Local development only (Fabric Runtime 1.3 already ships these)
-pyspark==3.5.1
+# Local development only. Fabric Runtime 2.0 ships pyspark/pandas/pyarrow; geopandas is for scripts/ only
+pyspark==4.1.1
 pandas
 pyarrow
 pytest
 requests
 python-dotenv
+geopandas

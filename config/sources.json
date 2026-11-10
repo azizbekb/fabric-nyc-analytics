@@ -1,34 +1,54 @@
 {
+  "repo_raw_url": "https://raw.githubusercontent.com/azizbekb/fabric-nyc-analytics/main",
   "lakehouses": {
     "bronze": "lh_bronze",
     "silver": "lh_silver"
   },
-
   "taxi": {
     "type": "file",
     "url_template": "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month}.parquet",
-    "months": ["2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06"],
+    "months": [
+      "2024-01",
+      "2024-02",
+      "2024-03",
+      "2024-04",
+      "2024-05",
+      "2024-06"
+    ],
     "bronze_path": "Files/taxi",
     "silver_table": "silver_taxi_trips",
     "quarantine_table": "quarantine_taxi_trips",
-    "library": "nb_lib_taxi"
+    "library": "nb_lib_taxi",
+    "quality": {
+      "max_duration_h": 24,
+      "max_distance_mi": 100,
+      "max_fare_usd": 1000,
+      "void_tolerance_usd": 0.005
+    }
   },
-
   "taxi_zones": {
     "type": "file",
     "url": "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv",
     "bronze_path": "Files/taxi_zones",
     "silver_table": "silver_taxi_zones",
-    "library": "nb_lib_taxi_zones"
+    "library": "nb_lib_taxi",
+    "shapefile_url": "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zones.zip",
+    "shapefile_member": "taxi_zones/taxi_zones.shp"
   },
-
   "openaq": {
     "type": "api",
     "base_url": "https://api.openaq.org/v3",
-    "center": { "lat": 40.7128, "lon": -74.0060 },
+    "center": {
+      "lat": 40.7128,
+      "lon": -74.006
+    },
     "radius_m": 25000,
     "monitors_only": true,
-    "parameters": ["pm25", "no2", "o3"],
+    "parameters": [
+      "pm25",
+      "no2",
+      "o3"
+    ],
     "locations_path": "/locations",
     "daily_path": "/sensors/{sensor_id}/days",
     "page_limit": 1000,
@@ -38,7 +58,14 @@
     "quarantine_table": "quarantine_air_quality",
     "library": "nb_lib_openaq"
   },
-
+  "monitor_zones": {
+    "type": "file",
+    "path": "reference/monitor_zones.csv",
+    "outside_label": "Outside NYC",
+    "bronze_path": "Files/reference",
+    "silver_table": "silver_monitor_zones",
+    "library": "nb_lib_openaq"
+  },
   "worldbank": {
     "type": "api",
     "url": "https://api.worldbank.org/v2/country/USA/indicator/NY.GDP.MKTP.CD?format=json",
@@ -47,7 +74,6 @@
     "silver_table": "silver_gdp",
     "library": "nb_lib_worldbank"
   },
-
   "ecb": {
     "type": "api",
     "url": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata",

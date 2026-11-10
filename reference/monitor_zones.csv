@@ -1,0 +1,26 @@
+location_id,location_name,latitude,longitude,zone_id,zone,borough
+384,CCNY,40.8197,-73.9481,152,Manhattanville,Manhattan
+386,Susan Wagner,40.5969,-74.1264,118,Heartland Village/Todt Hill,Staten Island
+625,Manhattan/IS143,40.8492,-73.9319,243,Washington Heights North,Manhattan
+626,Bronx - IS52,40.816101,-73.902199,147,Longwood,Bronx
+628,Maspeth,40.7269,-73.8933,157,Maspeth,Queens
+631,Queens,40.7375,-73.8244,135,Kew Gardens Hills,Queens
+642,PS 19,40.73,-73.984459,79,East Village,Manhattan
+648,Bklyn - PS 314,40.641819,-74.018707,228,Sunset Park West,Brooklyn
+662,Division Street,40.7142,-73.995,148,Lower East Side,Manhattan
+664,Bklyn - PS274,40.694401,-73.928596,37,Bushwick South,Brooklyn
+665,Bronx - IS74,40.814701,-73.886703,126,Hunts Point,Bronx
+666,Pfizer Lab,40.868,-73.8782,31,Bronx Park,Bronx
+853,East Orange,40.7575,-74.2005,,,Outside NYC
+857,Fort Lee Near Road,40.85355,-73.9661,,,Outside NYC
+928,Jersey City FH,40.725452,-74.052292,,,Outside NYC
+971,Elizabeth Trailer,40.641441,-74.208366,,,Outside NYC
+974,Newark Firehouse,40.720989,-74.192894,,,Outside NYC
+984,Leonia,40.870438,-73.991997,,,Outside NYC
+1122,Jersey City,40.731689,-74.066566,,,Outside NYC
+1496,Bayonne,40.67025,-74.126083,,,Outside NYC
+8749,Queens Near-road,40.739264,-73.817694,192,Queensboro Hill,Queens
+292229,Morrisania,40.8367,-73.9214,247,West Concourse,Bronx
+387315,Union City High Scho,40.770908,-74.036218,,,Outside NYC
+496096,Port Richmond,40.63306,-74.137156,187,Port Richmond,Staten Island
+6434257,Newark Chestnut,40.72736,-74.17447,,,Outside NYC
