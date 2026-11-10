@@ -1,0 +1,55 @@
+{
+  "lakehouses": {
+    "bronze": "lh_bronze",
+    "silver": "lh_silver"
+  },
+
+  "taxi": {
+    "type": "file",
+    "url_template": "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month}.parquet",
+    "months": ["2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06"],
+    "bronze_path": "Files/taxi",
+    "silver_table": "silver_taxi_trips",
+    "quarantine_table": "quarantine_taxi_trips",
+    "library": "nb_lib_taxi"
+  },
+
+  "taxi_zones": {
+    "type": "file",
+    "url": "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv",
+    "bronze_path": "Files/taxi_zones",
+    "silver_table": "silver_taxi_zones",
+    "library": "nb_lib_taxi_zones"
+  },
+
+  "openaq": {
+    "type": "api",
+    "base_url": "https://api.openaq.org/v3",
+    "center": { "lat": 40.7128, "lon": -74.0060 },
+    "radius_m": 25000,
+    "parameters": ["pm25", "no2", "o3"],
+    "page_limit": 1000,
+    "bronze_table": "bronze_openaq_measurements",
+    "silver_table": "silver_air_quality",
+    "quarantine_table": "quarantine_air_quality",
+    "library": "nb_lib_openaq"
+  },
+
+  "worldbank": {
+    "type": "api",
+    "url": "https://api.worldbank.org/v2/country/USA/indicator/NY.GDP.MKTP.CD?format=json",
+    "per_page": 100,
+    "bronze_table": "bronze_worldbank_gdp",
+    "silver_table": "silver_gdp",
+    "library": "nb_lib_worldbank"
+  },
+
+  "ecb": {
+    "type": "api",
+    "url": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata",
+    "bronze_table": "bronze_ecb_fx",
+    "silver_table": "silver_fx_daily",
+    "missing_day_rule": "last_available",
+    "library": "nb_lib_ecb"
+  }
+}

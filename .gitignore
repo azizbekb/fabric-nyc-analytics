@@ -1,0 +1,23 @@
+# Secrets
+.env
+*.env
+!.env.example
+
+# Local data (downloaded samples)
+data/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Spark local artifacts
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
