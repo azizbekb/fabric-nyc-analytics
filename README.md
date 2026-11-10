@@ -25,13 +25,13 @@ reference/            small committed reference data (monitor_zones.csv)
 scripts/              local one-off scripts (profiling, monitor mapping)
 fabric/               Fabric Git integration folder (*.Notebook, *.DataPipeline, ...)
 tests/                pytest tests; they load library notebook source files directly
-docs/                 data dictionary, lineage, governance, data profile, sources
+docs/                 data dictionary, lineage, governance, data profile, sources, setup_fabric
 DEFENSE.md            defense notes (Uzbek)
 ```
 
 ## Setup from scratch
 
-_TODO (Phase 0): Fabric workspace, lakehouses, warehouse, Git connection._
+Step by step: [docs/setup_fabric.md](docs/setup_fabric.md) (Phase 0: capacity, workspace, Runtime 2.0, lakehouses, warehouse, Git; Phase 1: pipeline and dataflows).
 
 ### Local development
 

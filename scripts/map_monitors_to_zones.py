@@ -19,7 +19,7 @@ def fetch_monitors(oa, api_key):
     params = {"coordinates": f"{oa['center']['lat']},{oa['center']['lon']}", "radius": oa["radius_m"], "limit": oa["page_limit"]}
     rows, page = [], 1
     while True:
-        r = requests.get(oa["base_url"] + oa["locations_path"], headers={"X-API-Key": api_key}, params={**params, "page": page}, timeout=60)
+        r = requests.get(f"{oa['base_url']}/{oa['locations_path']}", headers={"X-API-Key": api_key}, params={**params, "page": page}, timeout=60)
         r.raise_for_status()
         batch = r.json()["results"]
         rows += batch
@@ -54,7 +54,7 @@ def map_to_zones(points, zones, outside_label):
 def main():
     load_dotenv(".env")
     tz, mz = CFG["taxi_zones"], CFG["monitor_zones"]
-    zones = gpd.read_file(f"/vsizip/vsicurl/{tz['shapefile_url']}/{tz['shapefile_member']}")
+    zones = gpd.read_file(f"/vsizip/vsicurl/{tz['base_url']}/{tz['shapefile_path']}/{tz['shapefile_member']}")
     monitors = fetch_monitors(CFG["openaq"], os.environ["OPENAQ_API_KEY"])
     result = map_to_zones(to_points(monitors), zones, mz["outside_label"])
     os.makedirs(os.path.dirname(mz["path"]), exist_ok=True)

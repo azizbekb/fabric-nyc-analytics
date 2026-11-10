@@ -34,7 +34,7 @@ def main(month):
     spark = SparkSession.builder.master("local[*]").config("spark.ui.showConsoleProgress", "false").getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     cfg = json.load(open("config/sources.json"))
-    file_name = cfg["taxi"]["url_template"].format(month=month).rsplit("/", 1)[1]
+    file_name = cfg["taxi"]["path_template"].format(month=month).rsplit("/", 1)[1]
     df = spark.read.parquet(f"data/{file_name}").cache()
 
     start = F.to_timestamp(F.lit(f"{month}-01"))

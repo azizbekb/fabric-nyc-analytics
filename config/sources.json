@@ -1,12 +1,18 @@
 {
-  "repo_raw_url": "https://raw.githubusercontent.com/azizbekb/fabric-nyc-analytics/main",
+  "repo": {
+    "raw_base_url": "https://raw.githubusercontent.com",
+    "raw_path": "azizbekb/fabric-nyc-analytics/main",
+    "config_path": "config/sources.json"
+  },
   "lakehouses": {
     "bronze": "lh_bronze",
     "silver": "lh_silver"
   },
+  "warehouse": "wh_gold",
   "taxi": {
     "type": "file",
-    "url_template": "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month}.parquet",
+    "base_url": "https://d37ci6vzurychx.cloudfront.net",
+    "path_template": "trip-data/yellow_tripdata_{month}.parquet",
     "months": [
       "2024-01",
       "2024-02",
@@ -15,7 +21,7 @@
       "2024-05",
       "2024-06"
     ],
-    "bronze_path": "Files/taxi",
+    "bronze_folder": "taxi",
     "silver_table": "silver_taxi_trips",
     "quarantine_table": "quarantine_taxi_trips",
     "library": "nb_lib_taxi",
@@ -28,16 +34,17 @@
   },
   "taxi_zones": {
     "type": "file",
-    "url": "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv",
-    "bronze_path": "Files/taxi_zones",
+    "base_url": "https://d37ci6vzurychx.cloudfront.net",
+    "path": "misc/taxi_zone_lookup.csv",
+    "shapefile_path": "misc/taxi_zones.zip",
+    "shapefile_member": "taxi_zones/taxi_zones.shp",
+    "bronze_folder": "taxi_zones",
     "silver_table": "silver_taxi_zones",
-    "library": "nb_lib_taxi",
-    "shapefile_url": "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zones.zip",
-    "shapefile_member": "taxi_zones/taxi_zones.shp"
+    "library": "nb_lib_taxi"
   },
   "openaq": {
     "type": "api",
-    "base_url": "https://api.openaq.org/v3",
+    "base_url": "https://api.openaq.org",
     "center": {
       "lat": 40.7128,
       "lon": -74.006
@@ -49,8 +56,8 @@
       "no2",
       "o3"
     ],
-    "locations_path": "/locations",
-    "daily_path": "/sensors/{sensor_id}/days",
+    "locations_path": "v3/locations",
+    "daily_path": "v3/sensors/{sensor_id}/days",
     "page_limit": 1000,
     "min_coverage_pct": 75,
     "bronze_table": "bronze_openaq_measurements",
@@ -62,13 +69,17 @@
     "type": "file",
     "path": "reference/monitor_zones.csv",
     "outside_label": "Outside NYC",
-    "bronze_path": "Files/reference",
+    "bronze_folder": "reference",
     "silver_table": "silver_monitor_zones",
     "library": "nb_lib_openaq"
   },
   "worldbank": {
     "type": "api",
-    "url": "https://api.worldbank.org/v2/country/USA/indicator/NY.GDP.MKTP.CD?format=json",
+    "base_url": "https://api.worldbank.org",
+    "path": "v2/country/USA/indicator/NY.GDP.MKTP.CD",
+    "query": {
+      "format": "json"
+    },
     "per_page": 100,
     "bronze_table": "bronze_worldbank_gdp",
     "silver_table": "silver_gdp",
@@ -76,7 +87,11 @@
   },
   "ecb": {
     "type": "api",
-    "url": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata",
+    "base_url": "https://data-api.ecb.europa.eu",
+    "path": "service/data/EXR/D.USD.EUR.SP00.A",
+    "query": {
+      "format": "csvdata"
+    },
     "bronze_table": "bronze_ecb_fx",
     "silver_table": "silver_fx_daily",
     "missing_day_rule": "last_available",
