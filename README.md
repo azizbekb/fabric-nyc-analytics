@@ -39,16 +39,20 @@ Step by step: [docs/setup_fabric.md](docs/setup_fabric.md) (Phase 0: capacity, w
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env   # put your OPENAQ_API_KEY here; .env is git-ignored
-pytest
 ```
 
-PySpark 4.1 needs Java 17 or newer (`JAVA_HOME`).
+PySpark 4.1 needs Java 17 or newer. `JAVA_HOME` is exported in `.venv/bin/activate`.
 
-Tests load the library notebooks exactly as Fabric runs them (see `tests/notebook_loader.py`):
+### How to run tests
 
 ```bash
-pytest -q
+./scripts/run_tests.sh              # all tests; expected last line: "16 passed"
+./scripts/run_tests.sh -k taxi      # only tests whose name contains "taxi"
 ```
+
+The script activates `.venv` (Python + `JAVA_HOME`) and runs `pytest`. Running plain `pytest`
+without the activated venv fails with errors at Spark start-up, because Java is not found.
+Tests load the library notebooks exactly as Fabric runs them (see `tests/notebook_loader.py`).
 
 ### Fabric runtime
 
