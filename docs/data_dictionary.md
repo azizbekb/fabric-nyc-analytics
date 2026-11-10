@@ -67,4 +67,17 @@ Source: ECB. One row per calendar day.
 
 ## Gold
 
-_TODO (Phase 3)_
+Warehouse `wh_gold`. DDL: `drafts/warehouse/gold_ddl.sql`; load procedures: `drafts/warehouse/gold_load.sql`
+(full reload). Keys are `NOT ENFORCED` (Fabric). All money is in USD unless the name says `eur`.
+
+| Table | Grain | Columns | Source |
+|---|---|---|---|
+| DimDate | 1 row per day from the first to the last fact day | date_key (yyyymmdd), date, year, quarter, month, month_name, day, day_of_week (1 = Mon), day_name, is_weekend | generated |
+| DimZone | TLC zone | zone_id, borough, zone, service_zone | silver_taxi_zones |
+| DimLocation | OpenAQ monitor | location_id, location_name, latitude, longitude, zone_id (NULL outside NYC), zone, borough | silver_monitor_zones |
+| DimFX | day | date_key, date, usd_per_eur, is_filled | silver_fx_daily |
+| DimGDP | year | year, country_code, gdp_usd | silver_gdp |
+| FactTaxiDaily | day × pickup zone | trips (void pairs excluded), clean_trips (no outliers), total_fare_usd, total_amount_usd, total_amount_eur, avg_fare_usd, avg_distance_mi, avg_duration_min (averages over clean trips) | silver_taxi_trips + silver_fx_daily |
+| FactAirQualityDaily | day × monitor × pollutant | parameter, units, avg_value, min_value, max_value, is_low_coverage | silver_air_quality |
+
+`total_amount_eur = total_amount_usd / usd_per_eur` of the same day (weekends use the last available rate).

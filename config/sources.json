@@ -96,5 +96,16 @@
     "silver_table": "silver_fx_daily",
     "missing_day_rule": "last_available",
     "library": "nb_lib_ecb"
+  },
+  "gold": {
+    "load_procedures": [
+      "load_dim_date",
+      "load_dim_zone",
+      "load_dim_location",
+      "load_dim_fx",
+      "load_dim_gdp",
+      "load_fact_taxi_daily",
+      "load_fact_air_quality_daily"
+    ]
   }
 }

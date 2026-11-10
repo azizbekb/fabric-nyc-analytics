@@ -276,3 +276,44 @@ After each dataflow: **Save and run**, check the table in `lh_bronze`, then **So
 - `lh_bronze` → **Tables**: the three `bronze_*` tables, row counts close to `docs/sources.md`
   (OpenAQ ≈ 24 sensors × ~180 days; GDP 66 rows; ECB ~7,200 rows).
 - **Pause the F2 capacity** when you finish.
+
+---
+
+## Phase 3: Gold (Warehouse)
+
+Sources: [T-SQL surface area](https://learn.microsoft.com/en-us/fabric/data-warehouse/tsql-surface-area),
+[Data types](https://learn.microsoft.com/en-us/fabric/data-warehouse/data-types),
+[Table constraints](https://learn.microsoft.com/en-us/fabric/data-warehouse/table-constraints),
+[Warehouse Git integration](https://learn.microsoft.com/en-us/fabric/data-warehouse/git-integration),
+[Cross-database queries](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-warehouse),
+[GENERATE_SERIES](https://learn.microsoft.com/en-us/sql/t-sql/functions/generate-series-transact-sql?view=fabric),
+[Stored procedure activity](https://learn.microsoft.com/en-us/fabric/data-factory/stored-procedure-activity).
+
+### 3.1 Create the objects
+
+1. Open `wh_gold` → **New SQL query** → paste `drafts/warehouse/gold_ddl.sql` → **Run**.
+2. **New SQL query** → paste `drafts/warehouse/gold_load.sql` → **Run** (it creates the procedures).
+3. Explorer → **+ Warehouses** → add `lh_silver`, so its tables are visible next to Gold.
+   Queries use three-part names: `lh_silver.dbo.silver_taxi_trips`.
+4. Test: `EXEC dbo.load_dim_date;` then `SELECT TOP 100 * FROM dbo.DimDate;`.
+5. **Source control** → **Commit**. The Warehouse is saved as a database project (one `.sql` file per
+   object). I then move these drafts into the item folder and delete `drafts/warehouse/`.
+
+### 3.2 Load step in the pipeline
+
+1. **Refresh SQL analytics endpoint** activity for `lh_silver`, so the Warehouse reads the Delta
+   tables the notebooks just wrote.
+2. **ForEach** `ForEach gold procedure`: **Items** `@activity('Lookup config').output.firstRow.gold.load_procedures`,
+   **Sequential** ✓ (dimensions first, because `load_dim_fx` reads `DimDate`).
+   Inside it: **Stored procedure** activity, connection `wh_gold`, procedure name (dynamic content) `@concat('dbo.', item())`.
+
+### Known risk and fallback
+
+The docs say *cross-item dependencies between warehouses and SQL analytics endpoints aren't
+currently supported in development workflows*. Our procedures read `lh_silver`. If the Warehouse
+**Commit** or **Update all** fails for that reason, keep the tables in the Warehouse project and run the
+load SQL from a pipeline **Script** activity instead (same statements). Note the result here.
+
+Fabric T-SQL rules applied: `varchar` not `nvarchar`, `date`/`datetime2` not `datetime`,
+`smallint` not `tinyint`; keys only via `ALTER TABLE … NONCLUSTERED … NOT ENFORCED`;
+no default constraints, triggers, recursive CTEs or system-table queries (DimDate uses `GENERATE_SERIES`).
