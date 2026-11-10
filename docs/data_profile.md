@@ -1,7 +1,7 @@
 # Data Profile: NYC Yellow Taxi 2024-01
 
 Source: `yellow_tripdata_2024-01.parquet` (2,964,624 rows) and `taxi_zone_lookup.csv` (265 rows).
-Reproduce: `python scripts/profile_taxi.py 2024-01` (local PySpark 3.5).
+Reproduce: `python scripts/profile_taxi.py 2024-01` (local PySpark).
 
 ## Schema
 
@@ -78,7 +78,7 @@ Principle (rule 6): no row is silently dropped. Every row ends up in exactly one
 |---|---|---|
 | `pickup_outside_file_month` | pickup date not in the month of the source file | 18 |
 | `dropoff_before_pickup` | dropoff < pickup | 56 |
-| `duration_over_24h` | dropoff − pickup > 24 h | 16 |
+| `duration_over_limit` | dropoff − pickup > `max_duration_h` (24 h) | 16 |
 | `negative_amount` | fare or total < 0 and the row is not part of a void pair | ≈ 6,896 |
 | `duplicate` | second row of a natural-key group with no negative row | 8 |
 
@@ -97,7 +97,11 @@ zones 264/265 (DimZone holds them as Unknown / Outside of NYC), RatecodeID 99, V
 with different column spelling union cleanly. Code columns stay as numbers and are decoded later in
 Gold or the report.
 
-The thresholds (100 miles, 1000 USD, 24 h) go to `config/sources.json`, not into code.
+The thresholds (100 miles, 1000 USD, 24 h) live in `config/sources.json` → `taxi.quality`, not in code.
+
+**Check on the real file** (`transform_trips` on 2024-01): silver 2,957,630 + quarantine 6,994 = 2,964,624 raw rows.
+Quarantine: 18 / 56 / 16 / 6,896 / 8 (same as the profile). `is_void` = 61,340, not 61,344, because 2 void pairs
+(e.g. the 2002 pair) are rejected earlier as `pickup_outside_file_month`.
 
 ## Open points
 

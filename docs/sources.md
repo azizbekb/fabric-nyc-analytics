@@ -108,6 +108,25 @@ Daily coverage is high (average 86–99%). Days below 75% exist on most sensors 
   Because we load the full history, the first days of any taxi month always have an earlier rate.
 - Conversion: `amount_eur = amount_usd / usd_per_eur`.
 
+## Bronze contract for API tables
+
+Dataflows Gen2 (Phase 1) flatten the JSON/CSV into these columns. The Silver library functions
+expect exactly these names, and the Dataflow M code must produce them.
+Every table also gets the ingestion metadata columns `source` and `load_ts`.
+
+| Table | Columns |
+|---|---|
+| `bronze_openaq_measurements` | `location_id`, `location_name`, `sensor_id`, `parameter`, `units`, `period_start_local` (text, ISO with offset), `value`, `value_min`, `value_max`, `percent_complete`, `has_source_flags` |
+| `bronze_worldbank_gdp` | `country_code`, `indicator_id`, `year` (text), `value` |
+| `bronze_ecb_fx` | all CSV columns unchanged (`KEY`, `TIME_PERIOD`, `OBS_VALUE`, `OBS_STATUS`, …) |
+
+## Monitor → taxi zone reference
+
+`reference/monitor_zones.csv` maps each selected monitor to its TLC taxi zone / borough
+(point-in-polygon with geopandas on the official TLC shapefile `taxi_zones.zip`, EPSG:2263).
+It is built locally by `scripts/map_monitors_to_zones.py` and committed. Fabric only reads the CSV.
+Result today: 25 monitors, 14 inside NYC (all 5 boroughs), 11 `Outside NYC` (New Jersey).
+
 ## NYC TLC
 
 See [data_profile.md](data_profile.md). Monthly Parquet, ~50 MB per month, no key.

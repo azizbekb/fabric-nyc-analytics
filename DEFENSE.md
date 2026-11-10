@@ -149,3 +149,51 @@ Uchta variantni solishtirdik:
 1. **Yangi pollutant (pm10) qo'shish:** `openaq.parameters` ga `"pm10"` qo'shing. Hech qanday kod o'zgarmaydi, Dataflow mos sensorlarni o'zi topadi.
 2. **Radiusni o'zgartirish:** `openaq.radius_m` ni 15000 qiling (25000 dan katta qiymat bo'lishi mumkin emas, API 422 qaytaradi).
 3. **Coverage chegarasini o'zgartirish:** `openaq.min_coverage_pct` ni 75 dan 90 ga o'zgartiring.
+
+---
+
+## Step D — Silver funksiyalari va testlar
+
+### Fayllar
+- **`drafts/nb_lib_common.py`**: umumiy yordamchi funksiyalar:
+  - `to_snake_case` / `snake_case_columns`: ustun nomlarini bir xil ko'rinishga keltiradi (`PULocationID` → `pu_location_id`);
+  - `split_by_rules`: qoidalar ro'yxati bo'yicha qatorni Silver'ga yoki quarantine'ga ajratadi, **birinchi mos kelgan qoida** `reject_reason` bo'ladi;
+  - `keep_first`: har bir kalit bo'yicha bitta qatorni qoldiradi, qolganlarini `duplicate` sababi bilan qaytaradi.
+- **`drafts/nb_lib_taxi.py`**: `transform_trips(df, month, quality)` funksiyasi: normalizatsiya → vaqt ustunlari → void juftliklarni belgilash → quarantine qoidalari → dedup → flag'lar. Bundan tashqari `transform_zones`.
+- **`drafts/nb_lib_openaq.py`**: `transform_air_quality` (mahalliy sana, null/manfiy qiymatlar, dedup, `is_low_coverage`) va `transform_monitor_zones`.
+- **`drafts/nb_lib_worldbank.py`**: `transform_gdp` (yilni int'ga o'tkazish, null qiymatni quarantine'ga yuborish).
+- **`drafts/nb_lib_ecb.py`**: `transform_fx`: kalendar to'ldiriladi va dam olish kuni oxirgi mavjud kursni oladi (`is_filled`).
+- **`tests/notebook_loader.py`**: library fayllarni **`%run` kabi** yuklaydi: tartib bilan, bitta umumiy namespace'ga. Avval `fabric/<nom>.Notebook/notebook-content.py` qidiriladi, u bo'lmasa `drafts/<nom>.py` olinadi. Kodning ikkinchi nusxasi yo'q.
+- **`tests/test_*.py`**: 16 ta kichik test, har biri bir nechta qatorli namunalar bilan.
+- **`scripts/map_monitors_to_zones.py`** va **`reference/monitor_zones.csv`**: monitorni taxi zonasiga bog'lash, faqat lokal geopandas bilan.
+
+### Nega `nb_lib_taxi` alohida `%run nb_lib_common` qilmaydi?
+Ishchi notebook ikkalasini tartib bilan chaqiradi: avval `%run nb_lib_common`, keyin `%run nb_lib_taxi`. Ikkalasi bitta namespace'ga tushadi, shuning uchun `nb_lib_taxi` ichida `split_by_rules` ni to'g'ridan-to'g'ri ishlatish mumkin. `notebook_loader.load_libs("nb_lib_common", "nb_lib_taxi")` lokal muhitda xuddi shuni takrorlaydi.
+
+### Monitorni zonaga bog'lash: nega lokal skript?
+TLC shapefile NY State Plane (feet) proyeksiyasida, uni ishlatish uchun geopandas, shapely va pyproj kerak. Fabric Runtime 2.0'da bu kutubxonalar yo'q, Environment'ga qo'shilsa esa notebook sessiyasi sekin ishga tushadi. Shuning uchun mapping **bir marta lokal** qilinadi va natija kichik CSV fayl sifatida commit qilinadi. Fabric uni boshqa CSV kabi o'qiydi. Yangi monitor qo'shilsa, skript qayta ishga tushiriladi (README'da yozilgan).
+
+### Haqiqiy faylda tekshiruv (2024-01)
+`silver 2 957 630 + quarantine 6 994 = raw 2 964 624`. Hech bir qator yo'qolmadi, quarantine sonlari esa profiling bilan bir xil chiqdi.
+
+### Fabric Runtime 2.0
+Runtime 1.3 qo'llab-quvvatlashdan chiqarilmoqda (EOSA), standart runtime endi 2.0 (Spark 4.1, Python 3.13). Lokal muhitda ham `pyspark 4.1.1` va Java 17 ishlatiladi (Spark 4 uchun Java 17+ kerak). Shunda lokal testlar Fabric bilan bir xil Spark versiyasida ishlaydi.
+
+### Asosiy tushunchalar
+- **Spark lazy evaluation**: `filter`, `withColumn`, `join` kabi buyruqlar darhol bajarilmaydi, Spark faqat reja (plan) tuzadi. Haqiqiy hisob faqat **action** bo'lganda boshlanadi: `count()`, `collect()`, `write`. Shuning uchun `transform_trips` tez qaytadi, og'ir ish esa `write` paytida bajariladi.
+- **Window function**: qatorlarni guruhlab, har bir qatorga guruh bo'yicha qiymat beradi (`count`, `sum`, `row_number`), `groupBy` dan farqli o'laroq qatorlar soni kamaymaydi. Void juftlik va dedup shu usulda topiladi.
+- **Deduplication strategy**: natural key bo'yicha `row_number()` hisoblanadi, birinchi qator qoladi, qolganlari `duplicate` sababi bilan quarantine'ga ketadi.
+- **Forward fill**: `last(..., ignorenulls=True)` va boshidan joriy qatorgacha bo'lgan window yordamida bo'sh kunga oxirgi kurs yoziladi.
+- **Pure function**: natija faqat kirish ma'lumotiga bog'liq va hech qanday tashqi ta'sir (side effect) yo'q. Shuning uchun uni test qilish oson.
+
+### Ehtimoliy savollar
+1. **Qator yo'qolmaganini qanday isbotlaysiz?** `split_by_rules` har bir qatorni yo Silver'ga, yo quarantine'ga yuboradi. Test `silver + quarantine = input` tengligini tekshiradi. Haqiqiy faylda ham shunday chiqdi.
+2. **Bitta qator ikkita qoidaga mos kelsa-chi?** Ro'yxatdagi **birinchi** qoida sabab bo'ladi (`coalesce(when...)`).
+3. **Outlier chegarasini qayerda o'zgartirasiz?** `config/sources.json` → `taxi.quality.max_distance_mi`. Kod o'zgarmaydi.
+4. **Testlar Fabric notebook kodini qanday test qiladi?** `notebook_loader` aynan `notebook-content.py` faylini yuklaydi. Fabric bu faylga faqat izoh qatorlari qo'shadi, demak u oddiy Python fayl.
+5. **Nega library'da `spark.read` yo'q?** O'qish va yozish ishchi notebook'da qilinadi. Library faqat DataFrame qabul qiladi va DataFrame qaytaradi, shuning uchun uni lokal test qilish mumkin.
+
+### Live change mashqlari
+1. **Yangi quarantine qoidasi** (masalan `tip_amount < 0`): `rejection_rules()` ro'yxatiga `("negative_tip", F.col("tip_amount") < 0)` qatorini qo'shing → `tests/test_taxi.py` ga qator qo'shing → `pytest`.
+2. **Yangi ustun** (masalan `pickup_weekday`): `add_trip_attributes` ichiga `"pickup_weekday": F.dayofweek(pickup)` qo'shing.
+3. **Coverage chegarasini o'zgartirish:** `openaq.min_coverage_pct` ni 90 qiling → `pytest` (test chegarani config'dan oladi).
