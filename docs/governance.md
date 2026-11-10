@@ -4,7 +4,7 @@
 
 Principle: **no row is silently dropped.** An invalid row either goes to a quarantine
 table with a `reject_reason` column, or stays in Silver with a flag column.
-Concrete rules: _TODO (Step B, from `docs/data_profile.md`)._
+Concrete rules (proposed, from profiling): see [data_profile.md](data_profile.md#proposed-silver-rules).
 
 ## Quarantine
 

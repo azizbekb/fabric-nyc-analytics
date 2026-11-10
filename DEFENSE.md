@@ -61,3 +61,40 @@ Uchta variantni solishtirdik:
 1. **Yangi taxi oyi qo'shish:** `config/sources.json` → `"months"` ga `"2024-07"` qo'shing → commit + push → Fabric'da Source control → **Update all** → pipeline'ni ishga tushiring.
 2. **Yangi pollutant qo'shish:** `openaq.parameters` ga masalan `"pm10"` qo'shing → commit + push → Update all → dataflow va silver notebook'ni ishga tushiring.
 3. **Yangi manba qo'shish:** `config/sources.json` ga yangi blok qo'shing (`type`, `url`, `bronze_table`, `silver_table`, `library`) → yangi `nb_lib_<name>` notebook yarating → Gold jadval qo'shing.
+
+---
+
+## Step B — Taxi ma'lumotini tahlil qilish (data profiling)
+
+### Fayllar
+- **`scripts/profile_taxi.py`**: bitta oylik taxi faylini lokal PySpark bilan tekshiradi va anomaliyalarni sanaydi. Fayl nomini config'dan oladi. Bu faqat tahlil uchun skript, Fabric'ga ko'chirilmaydi.
+- **`docs/data_profile.md`**: natijalar (schema, null'lar, anomaliyalar sonlari) va Silver uchun taklif qilingan qoidalar.
+
+### Eng muhim topilmalar (2024-01, 2 964 624 qator)
+- **140 162 ta "bo'sh" qator**: 5 ta ustun bir vaqtda NULL va `payment_type = 0`. Vaqt, zona va pul ustunlari esa to'g'ri, demak bular haqiqiy safarlar. Ularni o'chirmaymiz, flag bilan saqlaymiz.
+- **Void juftliklar (void pairs)**: 30 672 juft qator bor, ular bir xil safar bo'lib, +X va −X summalari yig'indisi 0 ga teng. Bu "to'lov olindi → bekor qilindi" degani. Faqat manfiy qatorni olib tashlasak, musbat qator qolib ketadi va ~30 ming safar va pul **ikki marta** hisoblanib qoladi. Shuning uchun **ikkala qatorni** `is_void` deb belgilaymiz va Gold'da hisoblamaymiz.
+- **Oydan tashqari sanalar**: 2002, 2009, 2023-12-31 va 2024-02-01 sanalari, jami 18 qator. Ular grafikda soxta "kichik kunlar" hosil qiladi, shuning uchun quarantine'ga yuboramiz.
+- **`trip_distance = 0`** (60 371): haqiqiy safarlar, saqlaymiz (lecturer qoidasi).
+- **`Airport_fee`** katta harf bilan yozilgan. Turli oylarda ustun nomi farq qilishi mumkin, shuning uchun hamma ustun nomini snake_case'ga keltiramiz.
+
+### Qoida: quarantine yoki flag?
+- **Quarantine** (`reject_reason` bilan): qatorga ishonib bo'lmaydi, masalan noto'g'ri vaqt, juftligi yo'q manfiy summa, dublikat.
+- **Flag** (Silver'da qoladi): qator haqiqiy safar, lekin hisob-kitobda ehtiyot bo'lish kerak, masalan `is_void`, `is_outlier`, `is_passenger_count_missing`.
+- Har bir qator albatta **bittasiga** tushadi: Silver yoki quarantine. Hech narsa jim o'chirilmaydi (no silent drop).
+
+### Asosiy tushunchalar
+- **Data profiling**: ma'lumotni tozalashdan oldin uni sanab o'rganish. Qoidalarni taxmin bilan emas, raqamlar asosida yozamiz.
+- **Natural key**: qatorni biznes ma'nosi bo'yicha aniqlaydigan ustunlar to'plami. Bu yerda: vendor, pickup vaqti, dropoff vaqti, PU zona, DO zona. Dublikat va void juftliklar shu kalit bo'yicha topildi.
+- **`timestamp_ntz`**: time zone'siz vaqt, ya'ni Nyu-York mahalliy vaqti. Uni UTC'ga aylantirmaymiz.
+
+### Ehtimoliy savollar
+1. **Nega manfiy summali qatorlarni shunchaki o'chirmadingiz?** Ular void juftlikning bir qismi. Faqat manfiysini o'chirsak, musbati qolib, revenue oshib ketadi. Ikkalasini `is_void` deb belgilaymiz.
+2. **`passenger_count` NULL bo'lsa nima qilasiz?** Qatorni saqlaymiz, qiymatni o'ylab topmaymiz (no imputation) va `is_passenger_count_missing` flag qo'yamiz. O'rtacha passenger hisobida ishtirok etmaydi.
+3. **2002 yilgi safar qayerga ketadi?** `quarantine_taxi_trips` ga, `reject_reason = pickup_outside_file_month` bilan.
+4. **Grafikda birinchi/oxirgi kunda soxta pasayish bo'lmasligini qanday ta'minladingiz?** Faqat fayl oyiga tegishli sanalar Silver'ga o'tadi, qolganlari quarantine'ga ketadi.
+5. **Bu sonlarni qanday oldingiz?** `python scripts/profile_taxi.py 2024-01`.
+
+### Live change mashqlari
+1. **Boshqa oyni tahlil qilish:** faylni `data/` ga yuklab, `python scripts/profile_taxi.py 2024-02` ni ishga tushiring.
+2. **Yangi tekshiruv qo'shish** (masalan `tip_amount > fare_amount`): `anomaly_checks()` lug'atiga bitta qator qo'shing.
+3. **Outlier chegarasini o'zgartirish** (100 → 50 mil): Step D'dan keyin bu qiymat config'da bo'ladi, kodga tegilmaydi.
