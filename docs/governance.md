@@ -22,4 +22,5 @@ _TODO: workspace roles; RLS optional._
 
 - No secret is committed. `.env` is git-ignored; `.env.example` holds only key names.
 - Locally the OpenAQ key is read from `OPENAQ_API_KEY`.
+- OpenAQ accepts the key **only as the `X-API-Key` header** (a query parameter returns 401), so a Dataflow must send it in `Web.Contents(..., [Headers = ...])`.
 - In Fabric: _TODO (Phase 1): decide between connection credentials, a runtime parameter, or Key Vault._

@@ -98,3 +98,49 @@ Uchta variantni solishtirdik:
 1. **Boshqa oyni tahlil qilish:** faylni `data/` ga yuklab, `python scripts/profile_taxi.py 2024-02` ni ishga tushiring.
 2. **Yangi tekshiruv qo'shish** (masalan `tip_amount > fare_amount`): `anomaly_checks()` lug'atiga bitta qator qo'shing.
 3. **Outlier chegarasini o'zgartirish** (100 → 50 mil): Step D'dan keyin bu qiymat config'da bo'ladi, kodga tegilmaydi.
+
+---
+
+## Step C — API'larni o'rganish
+
+### Fayllar
+- **`docs/sources.md`**: 3 ta API bo'yicha endpoint'lar, parametrlar, paging, javob maydonlari va "tuzoqlar" (quirks). Barcha sonlar haqiqiy test so'rovlardan olingan.
+- **`config/sources.json`** (yangilandi): OpenAQ uchun `monitors_only`, `locations_path`, `daily_path` va `min_coverage_pct` qo'shildi.
+
+### OpenAQ: qanday ishlaydi
+1. `GET /locations?coordinates=40.7128,-74.0060&radius=25000` so'rovi NYC atrofidagi 76 ta location'ni qaytaradi. Har birining ichida sensorlar ro'yxati ham bor.
+2. Faqat **davlat monitorlari** (`isMonitor = true`) va kerakli pollutant'lar (pm25, no2, o3) olinadi.
+3. Har bir sensor uchun `GET /sensors/{id}/days?date_from=...&date_to=...` so'rovi kunlik o'rtacha qiymatlarni qaytaradi.
+
+### Tuzoqlar (quirks), himoyada albatta aytish kerak
+- **Noto'g'ri parametr nomi indamay e'tiborsiz qoldiriladi.** `/days` endpoint'iga `datetime_from` yuborsak, API xato bermaydi, balki 2016-yildan beri hamma ma'lumotni qaytaradi. To'g'ri nomlar: `/days` uchun `date_from`/`date_to` (to inclusive), `/measurements/daily` uchun `datetime_from`/`datetime_to` (to exclusive).
+- **Radius maksimal 25 000 m.** Koordinata tartibi: avval **latitude**, keyin longitude.
+- **`meta.found` ba'zan matn** (`">1000"`) bo'ladi. Shuning uchun paging qaytgan sahifa `limit` dan kichik bo'lganda to'xtaydi.
+- **Kalit faqat header'da** (`X-API-Key`) qabul qilinadi, query parameter orqali yuborilsa 401 qaytadi.
+- **NO2 monitorlarining hammasi New Jersey'da.** NYC ichida 25 km radiusda NO2 monitori yo'q.
+- Rate limit: daqiqasiga 60 ta, soatiga 2000 ta so'rov. Bizga ~25 ta so'rov kerak, bu bemalol sig'adi.
+
+### World Bank
+- Javob **2 elementli massiv**: `[meta, data]`. `meta.pages` sahifalar sonini ko'rsatadi. `date` (yil) **matn** ko'rinishida keladi va son (int) ga aylantirish kerak.
+
+### ECB
+- `OBS_VALUE` = **1 EUR uchun USD** (masalan 1.1065). EUR summasi = USD / kurs.
+- **Dam olish va bayram kunlari kurs yo'q** (masalan 30-31 dekabr, 1 yanvar). Qoida: **oxirgi mavjud kurs** (last available, forward fill) va `is_filled = true` flag. To'liq tarixni (1999-yildan) yuklaymiz, shunda 1 yanvar uchun ham avvalgi kurs (29 dekabr) topiladi.
+
+### Asosiy tushunchalar
+- **Pagination**: katta javobni sahifalarga bo'lib olish (`page` + `limit`).
+- **Rate limit**: vaqt birligida ruxsat etilgan so'rovlar soni. Oshib ketsa, HTTP 429 qaytadi.
+- **Forward fill**: bo'sh kunni oldingi mavjud qiymat bilan to'ldirish.
+- **Coverage**: kun davomida kutilgan 24 ta soatlik o'lchovdan nechtasi bor. 75% dan kam bo'lsa, `is_low_coverage` flag qo'yiladi.
+
+### Ehtimoliy savollar
+1. **Nega low-cost sensorlarni olmadingiz?** Ular rasmiy kalibrlangan asboblar emas va ko'pchiligida 2024 uchun ma'lumot yo'q. Davlat monitorlari (AirNow) ishonchliroq.
+2. **Shanba kuni EUR kursi qayerdan olinadi?** Juma kungi kursdan (last available), `is_filled = true` belgisi bilan.
+3. **OpenAQ uchun qaysi sanalarni olasiz?** `taxi.months` dan hisoblanadi: birinchi oyning 1-kunidan oxirgi oyning oxirgi kunigacha. Yangi oy qo'shilsa, avtomatik kengayadi.
+4. **NO2 nega faqat New Jersey'dan?** 25 km radius ichidagi barcha NO2 monitorlari NJ'da joylashgan. Havo hududiy (regional) bo'lgani uchun ular NYC uchun ham ma'noli. Bu cheklov hujjatda yozilgan.
+5. **API kalit qanday yuboriladi?** Faqat `X-API-Key` header'da. Kod uni environment'dan oladi va hech qachon ekranga chiqarmaydi.
+
+### Live change mashqlari
+1. **Yangi pollutant (pm10) qo'shish:** `openaq.parameters` ga `"pm10"` qo'shing. Hech qanday kod o'zgarmaydi, Dataflow mos sensorlarni o'zi topadi.
+2. **Radiusni o'zgartirish:** `openaq.radius_m` ni 15000 qiling (25000 dan katta qiymat bo'lishi mumkin emas, API 422 qaytaradi).
+3. **Coverage chegarasini o'zgartirish:** `openaq.min_coverage_pct` ni 75 dan 90 ga o'zgartiring.
