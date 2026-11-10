@@ -73,6 +73,16 @@ Daily coverage is high (average 86–99%). Days below 75% exist on most sensors 
 | `flagInfo.hasFlags` = true | keep, flag `has_source_flags` |
 | Duplicate (sensor, date) | keep one, extra row to quarantine `duplicate` |
 
+### Limitations
+
+- **NO2 comes only from New Jersey monitors** (Fort Lee, Bayonne, Elizabeth, Jersey City). Within
+  25 km there is no NO2 monitor inside NYC, so NO2 trends describe the regional air, not a borough.
+- **Daily granularity only.** We load `/days`, so air quality has no time of day. Hour-of-day analysis
+  (rush hours, night) is possible only for taxi data, unless `/sensors/{id}/hours` is loaded later
+  (about 24× more rows, same paging).
+- Monitors are points. Fact rows are at monitor level, and the taxi correlation uses the **city-wide
+  daily average** of all monitors per pollutant, not a per-zone value.
+
 ## World Bank GDP
 
 - `GET https://api.worldbank.org/v2/country/USA/indicator/NY.GDP.MKTP.CD?format=json&per_page=100`

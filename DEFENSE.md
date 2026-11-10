@@ -140,6 +140,11 @@ Uchta variantni solishtirdik:
 4. **NO2 nega faqat New Jersey'dan?** 25 km radius ichidagi barcha NO2 monitorlari NJ'da joylashgan. Havo hududiy (regional) bo'lgani uchun ular NYC uchun ham ma'noli. Bu cheklov hujjatda yozilgan.
 5. **API kalit qanday yuboriladi?** Faqat `X-API-Key` header'da. Kod uni environment'dan oladi va hech qachon ekranga chiqarmaydi.
 
+### Cheklovlar (limitations), lecturer so'rashi mumkin
+- **NO2 faqat New Jersey monitorlaridan olinadi.** NYC ichida NO2 monitori yo'q, shuning uchun NO2 trendi borough emas, hududiy havoni ko'rsatadi.
+- **Faqat kunlik ma'lumot** (`/days`). Havo sifatida "kunning qaysi soati" degan tahlil yo'q. Soatlik tahlil faqat taxi uchun mumkin. Kerak bo'lsa `/sensors/{id}/hours` ni yuklash mumkin, lekin u ~24 baravar ko'p qator beradi.
+- Fakt jadval **monitor darajasida**. Taxi bilan korrelyatsiya uchun **butun shahar bo'yicha kunlik o'rtacha** ishlatiladi.
+
 ### Live change mashqlari
 1. **Yangi pollutant (pm10) qo'shish:** `openaq.parameters` ga `"pm10"` qo'shing. Hech qanday kod o'zgarmaydi, Dataflow mos sensorlarni o'zi topadi.
 2. **Radiusni o'zgartirish:** `openaq.radius_m` ni 15000 qiling (25000 dan katta qiymat bo'lishi mumkin emas, API 422 qaytaradi).
