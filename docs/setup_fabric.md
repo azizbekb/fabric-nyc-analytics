@@ -24,7 +24,7 @@ Sources: [Create a workspace](https://learn.microsoft.com/en-us/fabric/fundament
 
 ## Phase 0: workspace, storage, Git
 
-Status (2026-11-11): **0.1, 0.3, 0.4 are done.** Workspace `nyc-analytics` on the **Fabric Trial** capacity
+Status (2026-11-11): **0.1–0.4 are done.** Workspace `nyc-analytics` on the **Fabric Trial** capacity
 (region East Asia, ~59 days left), Runtime 2.0 is the workspace default, default environment Off, Starter Pool.
 
 ### 0.1 Capacity ✅ (Fabric Trial)
@@ -32,14 +32,14 @@ Status (2026-11-11): **0.1, 0.3, 0.4 are done.** Workspace `nyc-analytics` on th
 The project runs on the free Fabric Trial capacity, so there is nothing to pause. If a paid F2 capacity is
 used later: Azure portal → **Microsoft Fabric** → **Create**, size **F2**, and **Pause** it after every session.
 
-### 0.2 Tenant settings (once)
+### 0.2 Tenant settings ✅ (done 2026-11-11)
 
 Fabric → gear icon → **Admin portal** → **Tenant settings** (the docs also give the path
 **OneLake catalog** > **Govern** > **Configurations** > **Tenant settings**). Enable:
 
 - **Users can create Fabric items**
-- **Users can synchronize workspace items with their Git repositories**
-- **Users can synchronize workspace items with GitHub repositories**
+- **Users can sync workspace items with their Git repositories** (the docs say *synchronize*; the portal says *sync*)
+- **Users can sync workspace items with GitHub repositories** (warning *Multi-geo restrictions are not enforced for items connected to GitHub* is harmless here: one region, and Git stores code, not data)
 
 ### 0.3 Workspace ✅
 
