@@ -24,7 +24,7 @@ Sources: [Create a workspace](https://learn.microsoft.com/en-us/fabric/fundament
 
 ## Phase 0: workspace, storage, Git
 
-Status (2026-11-11): **0.1–0.4 are done.** Workspace `nyc-analytics` on the **Fabric Trial** capacity
+Status (2026-11-11): **0.1–0.5 are done.** Workspace `nyc-analytics` on the **Fabric Trial** capacity
 (region East Asia, ~59 days left), Runtime 2.0 is the workspace default, default environment Off, Starter Pool.
 
 ### 0.1 Capacity ✅ (Fabric Trial)
@@ -50,7 +50,7 @@ Workspace `nyc-analytics`, **Workspace settings** → **Workspace type** = Fabri
 **Workspace settings** → **Data Engineering/Science** → **Spark settings** → **Environment** tab →
 **Runtime version** → **2.0 (Spark 4.1, Delta 4.2)** → **Save**. Record it in README (Fabric runtime section).
 
-### 0.5 Lakehouses and Warehouse
+### 0.5 Lakehouses and Warehouse ✅ (lh_bronze, lh_silver without schemas; wh_gold)
 
 Choice: **two lakehouses (`lh_bronze`, `lh_silver`) plus one Warehouse (`wh_gold`)**. One item per
 layer makes the medallion boundaries visible, permissions can be set per layer, and the Gold layer
