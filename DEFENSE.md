@@ -225,18 +225,19 @@ Runtime 1.3 qo'llab-quvvatlashdan chiqarilmoqda (EOSA), standart runtime endi 2.
 - **2 ta Lakehouse (`lh_bronze`, `lh_silver`) + 1 ta Warehouse (`wh_gold`).** Har bir layer alohida item bo'lgani uchun chegaralar aniq ko'rinadi va ruxsatlarni layer bo'yicha berish mumkin.
 - **Lakehouse schemas o'chirilgan.** Schema'li Lakehouse'da Dataflow destination uchun qo'shimcha "Navigate using full hierarchy" opsiyasi kerak bo'ladi. Schema'siz ham Warehouse jadvalni `lh_silver.dbo.<jadval>` deb ko'radi.
 - **Config pipeline'ga qanday yetadi:** birinchi Copy activity `sources.json` ni GitHub'dan `lh_bronze/Files/config/` ga ko'chiradi. Keyin Lookup uni o'qiydi, ForEach esa `taxi.months` bo'yicha aylanadi. Config faylining manzili yagona "bootstrap" literal, chunki config o'zini o'qilishidan oldin ko'rsata olmaydi.
-- **OpenAQ kaliti:** Fabric'ning "Web API" credential'i kalitni URL ichida yuboradi, OpenAQ esa kalitni faqat header'da qabul qiladi. Shuning uchun zanjir quyidagicha:
-  1. kalit **Azure Key Vault**'da saqlanadi;
-  2. `nb_get_openaq_key` notebook'i uni `notebookutils.credentials.getSecret` bilan oladi (**Secure output**);
-  3. qiymat Dataflow'ning majburiy parametri `OpenAQApiKey` ga uzatiladi (**Secure input**).
+- **OpenAQ kaliti (Key Vault'siz):** Azure obunasi yo'q, shuning uchun Key Vault ham yo'q. Fabric'ning "Web API" credential'i kalitni URL ichida yuboradi, OpenAQ esa uni faqat header'da qabul qiladi (401). Yechim:
+  1. kalit `lh_bronze/Files/secrets/openaq_api_key.txt` faylida turadi (bir marta qo'lda yuklanadi);
+  2. `df_openaq` faylni Lakehouse connector bilan o'qiydi va `X-API-Key` header'iga qo'yadi.
 
-  Natijada kalit na Git'da, na log'larda ko'rinadi.
+  **Nega xavfsiz:** Fabric Git faqat item ta'rifini saqlaydi, Lakehouse'dagi fayl va jadvallar Git'ga **hech qachon** tushmaydi. Kalit parametr ham emas, shuning uchun run log'larida ko'rinmaydi.
+
+  **Kamchiligi (trade-off):** fayl OneLake'da oddiy matn ko'rinishida turadi. `lh_bronze` ni o'qiy oladigan har kim uni ochishi mumkin, kim o'qiganini ko'rsatadigan audit yo'q, kalitni almashtirish uchun yangi fayl yuklash kerak. Key Vault buning hammasini beradi, lekin Azure obunasini talab qiladi. Bitta foydalanuvchili kurs workspace'i uchun bu maqbul.
 
 ### Asosiy tushunchalar
 - **Lakehouse vs Warehouse:** Lakehouse'da fayllar va Delta jadvallar bo'ladi va asosan Spark bilan ishlanadi; SQL endpoint faqat o'qish uchun. Warehouse esa to'liq T-SQL beradi (CREATE, INSERT, UPDATE, procedure). Ikkalasi ham ma'lumotni OneLake'da Delta formatida saqlaydi.
 - **Pipeline vs Dataflow Gen2:** Pipeline **orkestratsiya** qiladi: fayl ko'chirish, tartib, ForEach, schedule. Dataflow Gen2 esa **Power Query** bilan ma'lumotni o'zgartiradi: API'dan JSON yoki CSV olib, uni jadvalga aylantiradi.
 - **Power Query M asoslari:** `let ... in` ichida har bir qadam nomlanadi. `Web.Contents` so'rov yuboradi, `Json.Document` va `Csv.Document` javobni o'qiydi. `List.Generate` sahifalab (paging) olish uchun ishlatiladi, `Table.FromRecords` esa yozuvlardan jadval yasaydi. M ham Spark kabi "lazy": qiymat kerak bo'lgandagina hisoblanadi.
-- **Secure input/output:** activity log'ida kirish yoki chiqish qiymati yashiriladi (masalan, API kalit).
+- **Secure input/output:** activity log'ida kirish yoki chiqish qiymati yashiriladi. Bu zaxira variantda kerak bo'ladi: notebook kalitni o'qib, Dataflow parametriga uzatsa.
 
 ### Tuzoqlar (himoyada aytish foydali)
 - Lakehouse destination **DateTimeZone** tipini qabul qilmaydi, shuning uchun `load_ts` UTC `datetime` bo'ladi.
@@ -298,7 +299,7 @@ Biror tekshiruv o'tmasa, skript `exit 1` bilan tugaydi.
 1. **Fact va dimension farqi nima?** Fact'da o'lchovlar (raqamlar, ko'p qator), dimension'da tavsif (filtr va guruhlash uchun atributlar).
 2. **Nega PK/FK `NOT ENFORCED`?** Fabric Warehouse kalitlarni faqat shu rejimda qabul qiladi. Ma'lumot to'g'riligini load mantiqi ta'minlaydi, kalitlar esa model va hujjat uchun.
 3. **EUR summa qanday hisoblanadi?** USD summa o'sha kunning `usd_per_eur` kursiga bo'linadi. Dam olish kunida juma kungi kurs ishlatiladi.
-4. **Pipeline'da kalit qanday himoyalangan?** Kalit Key Vault'da saqlanadi va notebook uni `getSecret` bilan oladi. Activity'larda Secure output/input yoqilgan, Git'da faqat `set-at-runtime` degan placeholder turadi.
+4. **Kalit qanday himoyalangan?** U `lh_bronze/Files/secrets/` dagi faylda turadi. Lakehouse ma'lumoti Git'ga sinxron bo'lmaydi va kalit parametr sifatida uzatilmaydi, shuning uchun log'da ham ko'rinmaydi. Key Vault'ga nisbatan kamchiligi: oddiy matn, audit yo'q, almashtirish qo'lda.
 5. **Gold jamilari to'g'ri ekanini qanday bilasiz?** `check_gold.py` fact jamilarini Silver bilan solishtiradi (2 896 290 = 2 896 290) va grain'ni tekshiradi.
 
 ### Live change mashqlari

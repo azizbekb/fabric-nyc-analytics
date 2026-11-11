@@ -24,13 +24,13 @@ Sources: [Create a workspace](https://learn.microsoft.com/en-us/fabric/fundament
 
 ## Phase 0: workspace, storage, Git
 
-### 0.1 F2 capacity (Azure portal)
+Status (2026-11-11): **0.1, 0.3, 0.4 are done.** Workspace `nyc-analytics` on the **Fabric Trial** capacity
+(region East Asia, ~59 days left), Runtime 2.0 is the workspace default, default environment Off, Starter Pool.
 
-1. Azure portal → search **Microsoft Fabric** → **Create**.
-2. Choose a resource group, a capacity name (lowercase letters and digits), the region closest to you, size **F2**,
-   and your account as capacity administrator → **Review + create** → **Create**.
-3. ⚠️ The capacity bills while it runs. **At the end of every working session, open the capacity in the
-   Azure portal and select Pause**, then select **Resume** when you start again.
+### 0.1 Capacity ✅ (Fabric Trial)
+
+The project runs on the free Fabric Trial capacity, so there is nothing to pause. If a paid F2 capacity is
+used later: Azure portal → **Microsoft Fabric** → **Create**, size **F2**, and **Pause** it after every session.
 
 ### 0.2 Tenant settings (once)
 
@@ -41,14 +41,11 @@ Fabric → gear icon → **Admin portal** → **Tenant settings** (the docs also
 - **Users can synchronize workspace items with their Git repositories**
 - **Users can synchronize workspace items with GitHub repositories**
 
-### 0.3 Workspace on the F2 capacity
+### 0.3 Workspace ✅
 
-1. Nav pane → **Workspaces** → **New workspace**.
-2. Name: `fabric-nyc-analytics`. Expand **Advanced** → **Workspace type**: choose the Fabric capacity type
-   and select your F2 capacity → **Apply**.
-3. Check it: workspace → **Workspace settings** → **Workspace type** shows the F2 capacity.
+Workspace `nyc-analytics`, **Workspace settings** → **Workspace type** = Fabric Trial capacity.
 
-### 0.4 Runtime 2.0
+### 0.4 Runtime 2.0 ✅
 
 **Workspace settings** → **Data Engineering/Science** → **Spark settings** → **Environment** tab →
 **Runtime version** → **2.0 (Spark 4.1, Delta 4.2)** → **Save**. Record it in README (Fabric runtime section).
@@ -92,26 +89,40 @@ Lakehouse **data** (files and tables) is not stored in Git. Only the item defini
 
 ## Phase 1: ingestion
 
-### 1.1 Secret: OpenAQ key in Azure Key Vault
+### 1.1 Secret: OpenAQ key in a Lakehouse file
 
-Constraint: OpenAQ accepts the key only as the `X-API-Key` header. Fabric's "Web API" key credential
-sends the key as a URL query parameter, which OpenAQ rejects with 401, so a stored connection
-credential cannot carry it. Chosen design (the key never appears in Git or in run logs):
+Constraints:
+- OpenAQ accepts the key only as the `X-API-Key` **header**. Fabric's "Web API" key credential sends the key
+  as a URL query parameter, and OpenAQ rejects that with 401. So a stored connection credential cannot carry it.
+- No Azure subscription, so Azure Key Vault is not available.
+
+Chosen design: the key is a one-line text file in **`lh_bronze` → Files → `secrets/openaq_api_key.txt`**,
+uploaded by hand once. `df_openaq` reads the file with the Lakehouse connector and puts it into the request header.
 
 ```
-Key Vault secret ──getSecret──▶ notebook nb_get_openaq_key (Secure output)
-                 ──exitValue──▶ Dataflow df_openaq, required public parameter OpenAQApiKey (Secure input)
+lh_bronze/Files/secrets/openaq_api_key.txt ──Lakehouse connector──▶ df_openaq ──X-API-Key header──▶ OpenAQ
 ```
 
-1. Azure portal → **Create a resource** → **Key Vault** → same resource group, a globally unique name,
-   permission model **Azure role-based access control** → **Create**.
-2. Key Vault → **Access control (IAM)** → **Add role assignment** → **Key Vault Secrets Officer** → your user.
-3. Key Vault → **Objects** → **Secrets** → **Generate/Import** → name `openaq-api-key`, value = your key.
-4. Send me the vault URL (`https://<name>.vault.azure.net/`). I add it to `config/sources.json`.
-   The vault URL is not a secret.
+Why it stays out of Git and logs:
+- Fabric Git integration stores item **definitions** only; Lakehouse files and tables are never synced to Git.
+- The key is not a pipeline or Dataflow parameter, so it does not appear in run inputs or outputs.
 
-Trade-off: one extra short notebook run per pipeline run. Simpler options were rejected: a parameter
-default would be stored in Git, and a value typed by hand cannot run on a daily schedule.
+Trade-off compared with Key Vault: the file is plain text inside OneLake (encrypted at rest by the platform).
+Anyone with read access to `lh_bronze` can open it, there is no audit log of who read the secret, and
+rotation means uploading a new file. For a single-user course workspace this is acceptable. It is the
+simplest option that works without Azure. Rule: Silver notebooks never read `Files/secrets/`.
+
+Steps:
+1. Create the file locally **outside the repo** (it must contain only the key):
+   `! grep '^OPENAQ_API_KEY=' .env | cut -d= -f2- | tr -d '\n' > ~/openaq_api_key.txt`
+2. `lh_bronze` → **Files** → **…** → **New subfolder** `secrets` → open it → **Upload** → **Upload files** →
+   `~/openaq_api_key.txt`.
+3. Delete the local copy: `! rm ~/openaq_api_key.txt`.
+
+Fallback, if the Dataflow cannot combine the Lakehouse file with the web source (*Formula.Firewall* error)
+even inside one query: a small notebook reads the file and returns it with `notebookutils.notebook.exit`
+(activity **Secure output** ✓), and the pipeline passes it to a required Dataflow public parameter
+(activity **Secure input** ✓).
 
 ### 1.2 Pipeline `pl_ingest`
 
@@ -134,11 +145,9 @@ connection. That is a platform limitation, documented here.
 | 3a | inside: **Copy data** `Copy taxi month` | Source `http_tlc`, **Relative URL** `@replace(activity('Lookup config').output.firstRow.taxi.path_template, '{month}', item())`, **Binary**. Destination `lh_bronze` **Files**, folder `@activity('Lookup config').output.firstRow.taxi.bronze_folder`, file name `@last(split(replace(activity('Lookup config').output.firstRow.taxi.path_template, '{month}', item()), '/'))`, **Binary**. |
 | 4 | **Copy data** `Copy taxi zones` | Source `http_tlc`, Relative URL `@activity('Lookup config').output.firstRow.taxi_zones.path`; destination folder `…taxi_zones.bronze_folder`, file name `@last(split(activity('Lookup config').output.firstRow.taxi_zones.path, '/'))`, Binary. |
 | 5 | **Copy data** `Copy monitor zones` | Source `http_github_raw`, Relative URL `@concat(activity('Lookup config').output.firstRow.repo.raw_path, '/', activity('Lookup config').output.firstRow.monitor_zones.path)`; destination folder `…monitor_zones.bronze_folder`, Binary. |
-| 6 | **Notebook** `Get OpenAQ key` | Notebook `nb_get_openaq_key` (I write it in Phase 1). **General** → advanced → **Secure output** ✓. |
-| 7 | **Dataflow** `Run df_openaq` | After 6. Dataflow `df_openaq`; **Dataflow parameters**: `OpenAQApiKey` = `@activity('Get OpenAQ key').output.result.exitValue`. **Secure input** ✓. |
-| 8 | **Dataflow** `Run df_worldbank`, `Run df_ecb` | No parameters. |
+| 6 | **Dataflow** `Run df_openaq`, `Run df_worldbank`, `Run df_ecb` | No parameters (the OpenAQ key is read from the Lakehouse file inside the dataflow). |
 
-Connect 1 → 2 → (3, 4, 5, 6, 8) with **On success** arrows, and 6 → 7. **Save**, then **Run**.
+Connect 1 → 2 → (3, 4, 5, 6) with **On success** arrows. **Save**, then **Run**.
 Check the **Output** tab below the canvas.
 
 Ingestion metadata for files: Bronze files stay byte-for-byte unchanged. The source and month are in
@@ -169,12 +178,16 @@ the literal base URL, keep the path in `RelativePath`, and note it here.
 
 #### `df_openaq` → `bronze_openaq_measurements`
 
-Extra parameter: `OpenAQApiKey`, type Text, **Required**, current value `set-at-runtime`
-(a placeholder: Git stores only this word). Then Home → **Options** → *dataflow* → **Parameters** →
-**Enable parameters to be discovered and override for execution** → **OK**.
+The key comes from `lh_bronze/Files/secrets/openaq_api_key.txt`. Get the navigation steps from the UI:
+**Get data** → **Lakehouse** → `lh_bronze` → **Files** → `secrets` → `openaq_api_key.txt`. Open that query's
+**Advanced editor**, copy its steps into the query below as `KeyFile` (in the **same** query, which avoids
+the *Formula.Firewall* error), then delete the helper query. If Power Query asks about privacy levels when
+combining sources, set both sources to **Organizational**.
 
 ```m
 let
+    KeyFile = <navigation steps generated by the Lakehouse connector, ending at the file content (binary)>,
+    ApiKey = Text.Trim(Text.FromBinary(KeyFile)),
     Config = Json.Document(Web.Contents(ConfigUrl)),
     Cfg = Config[openaq],
     Months = List.Sort(Config[taxi][months]),
@@ -186,7 +199,7 @@ let
         Json.Document(Web.Contents(Cfg[base_url], [
             RelativePath = path,
             Query = query & [limit = Num(Cfg[page_limit]), page = Num(page)],
-            Headers = [#"X-API-Key" = OpenAQApiKey]
+            Headers = [#"X-API-Key" = ApiKey]
         ]))[results],
     GetAll = (path as text, query as record) as list =>
         List.Combine(List.Generate(
@@ -275,7 +288,7 @@ After each dataflow: **Save and run**, check the table in `lh_bronze`, then **So
   `taxi_zones/taxi_zone_lookup.csv`, `reference/monitor_zones.csv`.
 - `lh_bronze` → **Tables**: the three `bronze_*` tables, row counts close to `docs/sources.md`
   (OpenAQ ≈ 24 sensors × ~180 days; GDP 66 rows; ECB ~7,200 rows).
-- **Pause the F2 capacity** when you finish.
+- `lh_bronze` → **Files** → `secrets/` contains only `openaq_api_key.txt`; nothing else reads this folder.
 
 ---
 
