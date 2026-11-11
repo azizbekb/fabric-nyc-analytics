@@ -24,7 +24,7 @@ Sources: [Create a workspace](https://learn.microsoft.com/en-us/fabric/fundament
 
 ## Phase 0: workspace, storage, Git
 
-Status (2026-11-11): **0.1–0.5 are done.** Workspace `nyc-analytics` on the **Fabric Trial** capacity
+Status (2026-11-11): **Phase 0 is done (0.1–0.6).** Workspace `nyc-analytics` on the **Fabric Trial** capacity
 (region East Asia, ~59 days left), Runtime 2.0 is the workspace default, default environment Off, Starter Pool.
 
 ### 0.1 Capacity ✅ (Fabric Trial)
@@ -65,7 +65,7 @@ tables are still addressed as `lh_silver.dbo.<table>` from the Warehouse.
 
 Warehouse: **+ New item** → **Warehouse** (under **Store data**) → name `wh_gold` → **Create**.
 
-### 0.6 Connect the workspace to GitHub
+### 0.6 Connect the workspace to GitHub ✅ (Fabric commit `afc2dac`)
 
 1. GitHub → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** →
    **Generate new token**: repository access *Only select repositories* → `fabric-nyc-analytics`;
@@ -84,6 +84,17 @@ Daily loop after that:
   next refresh does not use the new version (documented limitation).
 
 Lakehouse **data** (files and tables) is not stored in Git. Only the item definitions are.
+
+What Fabric wrote to `fabric/` on the first sync (real format, inspected after `git pull`):
+
+| Item folder | Files | Meaning |
+|---|---|---|
+| `lh_bronze.Lakehouse/`, `lh_silver.Lakehouse/` | `.platform`, `lakehouse.metadata.json` (`{}`), `shortcuts.metadata.json` (`[]`), `alm.settings.json` | Only the definition: type, display name, a `logicalId`, shortcut settings. No data. |
+| `wh_gold.Warehouse/` | `.platform`, `wh_gold.sqlproj`, `.gitignore`, `.gitattributes` | An SDK-style **SQL database project** (`Microsoft.Build.Sql`). Tables and procedures will appear as `.sql` files. |
+
+`.platform` holds `metadata.type`, `metadata.displayName` and `config.logicalId`. Never edit the logicalId.
+The Warehouse default collation is **`Latin1_General_100_BIN2_UTF8`**, so string comparisons are
+**case-sensitive** (`'Outside NYC' <> 'outside nyc'`).
 
 ---
 
