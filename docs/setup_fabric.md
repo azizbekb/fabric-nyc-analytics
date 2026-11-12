@@ -135,7 +135,7 @@ even inside one query: a small notebook reads the file and returns it with `note
 (activity **Secure output** ✓), and the pipeline passes it to a required Dataflow public parameter
 (activity **Secure input** ✓).
 
-### 1.2 Pipeline `pl_ingest`
+### 1.2 Pipeline `pl_ingest` (rows 1–5 ✅ 2026-11-12)
 
 Workspace → **+ New item** → **Pipeline** → name `pl_ingest`. Below, `cfg` stands for
 `activity('Lookup config').output.firstRow`.
@@ -165,133 +165,48 @@ Ingestion metadata for files: Bronze files stay byte-for-byte unchanged. The sou
 the folder and file name. The Silver notebook adds `source_file` and `load_ts` from Spark's file
 metadata (`_metadata.file_path`, `_metadata.file_modification_time`).
 
-### 1.3 Dataflows Gen2
+### 1.3 Dataflows Gen2 ✅ (2026-11-12)
 
-For each dataflow: workspace → **Create new item** → **Dataflow Gen2** → name → **Create**
-(Git support is on by default). Home → **Get data** → **Blank query** → **Advanced editor** →
-paste the M code below → **OK**.
+The M code lives in `drafts/dataflows/` (`df_ecb.pq`, `df_worldbank.pq`, `df_openaq.pq`). Each file was
+syntax-checked locally with `@microsoft/powerquery-parser`. Copy the code from the GitHub raw URL in a
+browser, not from a terminal: terminal line wrapping broke long lines twice ("Token ',' expected").
 
-Shared parameter (Home → **Manage parameters** → **New**): `ConfigUrl`, type Text, current value
-`https://raw.githubusercontent.com/azizbekb/fabric-nyc-analytics/main/config/sources.json`.
+For each dataflow: workspace `nyc-analytics` → **+ New item** → **Dataflow Gen2** → name → **Create**.
+**Get data** → **Blank query** → replace the template with the file's code → rename the query to the
+Bronze table name from config (`ecb.bronze_table`, …).
 
-Destination for each query: select the query → **Add data destination** (top ribbon) →
-**Lakehouse** → `lh_bronze` → **New table** named as in config (`openaq.bronze_table`, …) →
-keep **Use automatic settings** (update method **Replace**). The table name has to be typed in the
-UI, because destination paths cannot be parameterized (documented limitation). It must match config.
+**Config is read from `lh_bronze/Files/config/sources.json`**, the copy made by `Copy config` in
+`pl_ingest`, not from GitHub. Reason: reading the GitHub raw URL from `df_openaq` returned an old
+version of the file without `openaq.locations_path` (cached). Reading the Lakehouse copy also gives
+one order: the pipeline refreshes the config first, then the dataflows read it.
 
-Lakehouse destinations do **not** support `DateTimeZone`, so `load_ts` is a UTC `datetime`.
+The first steps of each query (`Lakehouse.Contents` → workspace → lakehouse → `Files`) were generated
+by the Lakehouse connector (**Get data** → **Lakehouse** → `lh_bronze` → **Files**). The workspace and
+lakehouse IDs are not secrets.
 
-Rate limits: `df_openaq` makes 1 + (number of sensors) requests, about 35 today, under the
-60 requests/minute limit.
+`df_openaq` reads the OpenAQ key from `Files/secrets/openaq_api_key.txt` in the **same** query and sends
+it as the `X-API-Key` header. Never open the `ApiKey` step preview in a screenshot.
 
-If saving fails with a *dynamic data source* error, replace `Cfg[base_url]` in `Web.Contents` with
-the literal base URL, keep the path in `RelativePath`, and note it here.
+Connections and privacy levels:
+- web sources (`api.worldbank.org`, `data-api.ecb.europa.eu`, `api.openaq.org`): Authentication **Anonymous**
+  (the OpenAQ key goes in the header, not the connection);
+- privacy level **Organizational** for the Lakehouse and every web source used with it in one query.
+  Mixing Organizational (Lakehouse) and Public (web) triggers the *Formula.Firewall* error.
 
-#### `df_openaq` → `bronze_openaq_measurements`
+Destination: **Add data destination** → **Lakehouse** → `lh_bronze` → `dbo` → **Choose** →
+**Bind selected queries**. Column mapping: accept the defaults. Update method **Replace**.
+Notes from the first run:
+- A dataflow run can say **Succeeded** without writing anything if the query has no destination. Always
+  check the table itself.
+- A new table can show up under **Tables → Unidentified** for a few minutes. **Refresh** the Tables folder.
+- Lakehouse destinations do **not** support `DateTimeZone`, so `load_ts` is a UTC `datetime`.
 
-The key comes from `lh_bronze/Files/secrets/openaq_api_key.txt`. Get the navigation steps from the UI:
-**Get data** → **Lakehouse** → `lh_bronze` → **Files** → `secrets` → `openaq_api_key.txt`. Open that query's
-**Advanced editor**, copy its steps into the query below as `KeyFile` (in the **same** query, which avoids
-the *Formula.Firewall* error), then delete the helper query. If Power Query asks about privacy levels when
-combining sources, set both sources to **Organizational**.
+Rate limits: `df_openaq` makes 1 + (number of sensors) requests, about 25, under the 60 requests/minute limit.
+The paging stops when a page is shorter than `limit`, because `meta.found` can be the text `">1000"`.
+`Num` formats numbers with `en-US`, so 40.7128 never becomes "40,7128".
 
-```m
-let
-    KeyFile = <navigation steps generated by the Lakehouse connector, ending at the file content (binary)>,
-    ApiKey = Text.Trim(Text.FromBinary(KeyFile)),
-    Config = Json.Document(Web.Contents(ConfigUrl)),
-    Cfg = Config[openaq],
-    Months = List.Sort(Config[taxi][months]),
-    DateFrom = List.First(Months) & "-01",
-    DateTo = Date.ToText(Date.EndOfMonth(Date.FromText(List.Last(Months) & "-01")), [Format = "yyyy-MM-dd"]),
-    Num = (n as number) as text => Number.ToText(n, "G", "en-US"),
-    Field = (r as nullable record, name as text) => if r = null then null else Record.FieldOrDefault(r, name),
-    GetPage = (path as text, query as record, page as number) as list =>
-        Json.Document(Web.Contents(Cfg[base_url], [
-            RelativePath = path,
-            Query = query & [limit = Num(Cfg[page_limit]), page = Num(page)],
-            Headers = [#"X-API-Key" = ApiKey]
-        ]))[results],
-    GetAll = (path as text, query as record) as list =>
-        List.Combine(List.Generate(
-            () => [page = 1, rows = GetPage(path, query, 1)],
-            each [rows] <> null,
-            each [page = [page] + 1,
-                  rows = if List.Count([rows]) < Cfg[page_limit] then null else GetPage(path, query, [page] + 1)],
-            each [rows])),
-    Locations = GetAll(Cfg[locations_path], [
-        coordinates = Num(Cfg[center][lat]) & "," & Num(Cfg[center][lon]),
-        radius = Num(Cfg[radius_m])]),
-    Selected = List.Select(Locations, each [isMonitor] or not Cfg[monitors_only]),
-    Sensors = List.Combine(List.Transform(Selected, (loc) =>
-        List.Transform(
-            List.Select(loc[sensors], (s) => List.Contains(Cfg[parameters], s[parameter][name])),
-            (s) => [location_id = loc[id], location_name = loc[name], sensor_id = s[id],
-                    parameter = s[parameter][name], units = s[parameter][units]]))),
-    Days = List.Combine(List.Transform(Sensors, (s) =>
-        List.Transform(
-            GetAll(Text.Replace(Cfg[daily_path], "{sensor_id}", Num(s[sensor_id])), [date_from = DateFrom, date_to = DateTo]),
-            (d) => s & [
-                period_start_local = d[period][datetimeFrom][local],
-                value = d[value],
-                value_min = Field(d[summary], "min"),
-                value_max = Field(d[summary], "max"),
-                percent_complete = Field(d[coverage], "percentComplete"),
-                has_source_flags = Field(d[flagInfo], "hasFlags")]))),
-    Result = Table.FromRecords(Days, type table [
-        location_id = Int64.Type, location_name = text, sensor_id = Int64.Type, parameter = text, units = text,
-        period_start_local = text, value = nullable number, value_min = nullable number, value_max = nullable number,
-        percent_complete = nullable number, has_source_flags = nullable logical]),
-    WithSource = Table.AddColumn(Result, "source", each "openaq", type text),
-    WithLoadTs = Table.AddColumn(WithSource, "load_ts", each DateTimeZone.RemoveZone(DateTimeZone.FixedUtcNow()), type datetime)
-in
-    WithLoadTs
-```
-
-Notes: `Num` formats numbers with `en-US`, so 40.7128 never becomes "40,7128". The paging stops
-when a page is shorter than `limit`, because `meta.found` can be the text `">1000"`.
-
-#### `df_worldbank` → `bronze_worldbank_gdp`
-
-```m
-let
-    Cfg = Json.Document(Web.Contents(ConfigUrl))[worldbank],
-    GetPage = (page as number) => Json.Document(Web.Contents(Cfg[base_url], [
-        RelativePath = Cfg[path],
-        Query = Cfg[query] & [per_page = Text.From(Cfg[per_page]), page = Text.From(page)]])),
-    Pages = GetPage(1){0}[pages],
-    Rows = List.Combine(List.Transform({1..Pages}, each GetPage(_){1})),
-    Records = List.Transform(Rows, each [
-        country_code = [countryiso3code], indicator_id = [indicator][id], year = [date], value = [value]]),
-    Result = Table.FromRecords(Records, type table [
-        country_code = text, indicator_id = text, year = text, value = nullable number]),
-    WithSource = Table.AddColumn(Result, "source", each "worldbank", type text),
-    WithLoadTs = Table.AddColumn(WithSource, "load_ts", each DateTimeZone.RemoveZone(DateTimeZone.FixedUtcNow()), type datetime)
-in
-    WithLoadTs
-```
-
-#### `df_ecb` → `bronze_ecb_fx`
-
-All CSV columns are kept unchanged, as text (Bronze = raw).
-
-```m
-let
-    Cfg = Json.Document(Web.Contents(ConfigUrl))[ecb],
-    Raw = Csv.Document(
-        Web.Contents(Cfg[base_url], [RelativePath = Cfg[path], Query = Cfg[query]]),
-        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
-    Promoted = Table.PromoteHeaders(Raw, [PromoteAllScalars = true]),
-    AsText = Table.TransformColumnTypes(Promoted, List.Transform(Table.ColumnNames(Promoted), each {_, type nullable text})),
-    WithSource = Table.AddColumn(AsText, "source", each "ecb", type text),
-    WithLoadTs = Table.AddColumn(WithSource, "load_ts", each DateTimeZone.RemoveZone(DateTimeZone.FixedUtcNow()), type datetime)
-in
-    WithLoadTs
-```
-
-After each dataflow: **Save and run**, check the table in `lh_bronze`, then **Source control** →
-**Commit**. I then `git pull` and replace these drafts with a pointer to the real
-`fabric/<name>.Dataflow/` item files, so the M code has one home only.
+After the items are committed from Fabric (**Source control** → **Commit**), I `git pull` and replace the
+drafts with the real `fabric/<name>.Dataflow/` item files, so the M code has one home only.
 
 ### 1.4 First checks
 
