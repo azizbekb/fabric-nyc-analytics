@@ -1,6 +1,5 @@
 [StagingDefinition = [Kind = "FastCopy"]]
 section Section1;
-shared ConfigUrl = "https://raw.githubusercontent.com/azizbekb/fabric-nyc-analytics/main/config/sources.json" meta [IsParameterQuery = true, IsParameterQueryRequired = false, Type = type text];
 [DataDestinations = {[Definition = [Kind = "Reference", QueryName = "bronze_openaq_measurements_DataDestination", IsNewTarget = true], Settings = [Kind = "Automatic", TypeSettings = [Kind = "Table"]]]}]
 shared bronze_openaq_measurements = let
     Lakehouse = Lakehouse.Contents([HierarchicalNavigation = null, EnableVorder = true, OutputMetadataRefresh = true]),
