@@ -156,9 +156,9 @@ connection. That is a platform limitation, documented here.
 | 3a | inside: **Copy data** `Copy taxi month` | Source `http_tlc`, **Relative URL** `@replace(activity('Lookup config').output.firstRow.taxi.path_template, '{month}', item())`, **Binary**. Destination `lh_bronze` **Files**, folder `@activity('Lookup config').output.firstRow.taxi.bronze_folder`, file name `@last(split(replace(activity('Lookup config').output.firstRow.taxi.path_template, '{month}', item()), '/'))`, **Binary**. |
 | 4 | **Copy data** `Copy taxi zones` | Source `http_tlc`, Relative URL `@activity('Lookup config').output.firstRow.taxi_zones.path`; destination folder `…taxi_zones.bronze_folder`, file name `@last(split(activity('Lookup config').output.firstRow.taxi_zones.path, '/'))`, Binary. |
 | 5 | **Copy data** `Copy monitor zones` | Source `http_github_raw`, Relative URL `@concat(activity('Lookup config').output.firstRow.repo.raw_path, '/', activity('Lookup config').output.firstRow.monitor_zones.path)`; destination folder `…monitor_zones.bronze_folder`, Binary. |
-| 6 | **Dataflow** `Run df_openaq`, `Run df_worldbank`, `Run df_ecb` | No parameters (the OpenAQ key is read from the Lakehouse file inside the dataflow). |
+| 6 | **Dataflow** `Run df_ecb`, `Run df_worldbank`, `Run df_openaq` | Workspace `nyc-analytics`, dataflow = the matching item. No parameters: each dataflow reads the config and (OpenAQ) the key from `lh_bronze` Files. |
 
-Connect 1 → 2 → (3, 4, 5, 6) with **On success** arrows. **Save**, then **Run**.
+Connect 1 → 2 → (3, 4, 5) and 1 → 6 with **On success** arrows (the dataflows only need the config file, not the Lookup output). **Save**, then **Run**.
 Check the **Output** tab below the canvas.
 
 Ingestion metadata for files: Bronze files stay byte-for-byte unchanged. The source and month are in
