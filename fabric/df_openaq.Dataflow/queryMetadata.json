@@ -1,0 +1,44 @@
+{
+  "formatVersion": "202502",
+  "computeEngineSettings": {
+    "allowModernEvaluationEngine": true
+  },
+  "name": "df_openaq",
+  "queryGroups": [],
+  "documentLocale": "en-US",
+  "queriesMetadata": {
+    "ConfigUrl": {
+      "queryId": "6c7369f5-8fe9-4c75-a6d0-f3eee9bc701b",
+      "queryName": "ConfigUrl",
+      "loadEnabled": false
+    },
+    "bronze_openaq_measurements": {
+      "queryId": "85381cc8-24c2-4cfc-b16d-c481055d0932",
+      "queryName": "bronze_openaq_measurements",
+      "loadEnabled": false
+    },
+    "bronze_openaq_measurements_DataDestination": {
+      "queryId": "c21c7f3d-4771-4871-978f-8b43039ef1cf",
+      "queryName": "bronze_openaq_measurements_DataDestination",
+      "isHidden": true,
+      "loadEnabled": false
+    }
+  },
+  "connections": [
+    {
+      "path": "Lakehouse",
+      "kind": "Lakehouse",
+      "connectionId": "{\"ClusterId\":\"dca39d35-d95a-400f-ab6c-0324e0eb1936\",\"DatasourceId\":\"42d7c151-a46c-42f4-8da2-35c0815de15a\"}"
+    },
+    {
+      "path": "https://raw.githubusercontent.com/azizbekb/fabric-nyc-analytics/main/config/sources.json",
+      "kind": "Web",
+      "connectionId": "{\"ClusterId\":\"dca39d35-d95a-400f-ab6c-0324e0eb1936\",\"DatasourceId\":\"dfce83ee-acda-423d-8fe9-012be4789e76\"}"
+    },
+    {
+      "path": "https://api.openaq.org/",
+      "kind": "Web",
+      "connectionId": "{\"ClusterId\":\"dca39d35-d95a-400f-ab6c-0324e0eb1936\",\"DatasourceId\":\"2f7822c4-002d-4988-b487-b22306f5fed7\"}"
+    }
+  ]
+}
