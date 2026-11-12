@@ -135,7 +135,7 @@ even inside one query: a small notebook reads the file and returns it with `note
 (activity **Secure output** ✓), and the pipeline passes it to a required Dataflow public parameter
 (activity **Secure input** ✓).
 
-### 1.2 Pipeline `pl_ingest` (rows 1–5 ✅ 2026-11-12)
+### 1.2 Pipeline `pl_ingest` ✅ (2026-11-12)
 
 Workspace → **+ New item** → **Pipeline** → name `pl_ingest`. Below, `cfg` stands for
 `activity('Lookup config').output.firstRow`.
@@ -167,9 +167,11 @@ metadata (`_metadata.file_path`, `_metadata.file_modification_time`).
 
 ### 1.3 Dataflows Gen2 ✅ (2026-11-12)
 
-The M code lives in `drafts/dataflows/` (`df_ecb.pq`, `df_worldbank.pq`, `df_openaq.pq`). Each file was
-syntax-checked locally with `@microsoft/powerquery-parser`. Copy the code from the GitHub raw URL in a
-browser, not from a terminal: terminal line wrapping broke long lines twice ("Token ',' expected").
+The M code lives in the Fabric items: `fabric/df_ecb.Dataflow/mashup.pq`, `fabric/df_worldbank.Dataflow/mashup.pq`,
+`fabric/df_openaq.Dataflow/mashup.pq` (Git format: `mashup.pq` = all queries, `queryMetadata.json` = query names and
+connection references, `.platform` = item type and id). The drafts were syntax-checked locally with
+`@microsoft/powerquery-parser` before pasting. Copy M code from the GitHub raw URL in a browser, not from a
+terminal: terminal line wrapping broke long lines twice ("Token ',' expected").
 
 For each dataflow: workspace `nyc-analytics` → **+ New item** → **Dataflow Gen2** → name → **Create**.
 **Get data** → **Blank query** → replace the template with the file's code → rename the query to the
@@ -205,8 +207,10 @@ Rate limits: `df_openaq` makes 1 + (number of sensors) requests, about 25, under
 The paging stops when a page is shorter than `limit`, because `meta.found` can be the text `">1000"`.
 `Num` formats numbers with `en-US`, so 40.7128 never becomes "40,7128".
 
-After the items are committed from Fabric (**Source control** → **Commit**), I `git pull` and replace the
-drafts with the real `fabric/<name>.Dataflow/` item files, so the M code has one home only.
+The default destination is stored in `mashup.pq` as a hidden `DefaultDestination` query
+(lh_bronze → `dbo`) plus `[BindToDefaultDestination = true]` on the bound query.
+
+Committed from Fabric on 2026-11-12 (`be45d53`): `pl_ingest` and the three dataflows.
 
 ### 1.4 First checks
 
