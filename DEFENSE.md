@@ -310,3 +310,56 @@ Biror tekshiruv o'tmasa, skript `exit 1` bilan tugaydi.
    - pipeline'ni ishga tushiring.
 2. **Kunlikdan soatlikka o'tish:** `GROUP BY` ga `t.pickup_hour` ni qo'shing, yangi `hour` ustuni yarating va grain'ni "kun × soat × zona" deb o'zgartiring. Data dictionary'ni ham yangilang. Silver'da `pickup_hour` allaqachon bor.
 3. **Yangi Gold jadval qo'shish (extendability):** `gold_ddl.sql` ga yangi `CREATE TABLE`, `gold_load.sql` ga yangi `load_<nom>` procedure yozing va `config/sources.json` → `gold.load_procedures` ro'yxatiga nomini qo'shing. Pipeline'ni o'zgartirish shart emas.
+
+---
+
+## Phase 1 — Bronze ingestion (Fabric'da bajarildi, 2026-11-12)
+
+### Fayllar (Fabric Git'ga o'zi yozgan)
+- **`fabric/pl_ingest.DataPipeline/pipeline-content.json`**: pipeline JSON ko'rinishida. Activity'lar va ularning `dependsOn` bog'lanishlari:
+  `Copy config` → `Lookup config` → (`ForEach taxi month`, `Copy taxi zones`, `Copy monitor zones`); `Copy config` → (`Run df_ecb`, `Run df_worldbank`, `Run df_openaq`).
+- **`fabric/df_*.Dataflow/mashup.pq`**: Dataflow'ning M kodi (Power Query). `queryMetadata.json`: query nomlari va connection havolalari (parol yoki kalit yo'q). `.platform`: item turi va id.
+
+### Pipeline qanday ishlaydi
+1. **Copy config**: GitHub'dagi `config/sources.json` → `lh_bronze/Files/config/`. Bu yagona "bootstrap" literal: config o'qilishidan oldin o'ziga ishora qila olmaydi.
+2. **Lookup config**: faylni o'qiydi. Natija `activity('Lookup config').output.firstRow` orqali olinadi.
+3. **ForEach taxi month**: `taxi.months` ro'yxatidagi har bir oy uchun parquet faylni yuklaydi (`batch count 2`, parallel). Fayl nomi `replace(path_template, '{month}', item())` va `last(split(..., '/'))` bilan hosil qilinadi.
+4. **Copy taxi zones / monitor zones**: ikki kichik CSV.
+5. **Run df_***: uch Dataflow. Ular faqat config faylga muhtoj, Lookup natijasiga emas, shuning uchun `Copy config` dan keyin ishga tushadi.
+
+Bronze fayllari baytma-bayt o'zgarmaydi (xom holda). API jadvallariga faqat `source` va `load_ts` qo'shiladi. Update method **Replace**: qayta ishga tushirilganda dublikat paydo bo'lmaydi.
+
+### Natija (2026-11-12)
+6 ta taxi parquet, `taxi_zone_lookup.csv`, `monitor_zones.csv`; jadvallar: `bronze_openaq_measurements` 4 274, `bronze_worldbank_gdp` 66, `bronze_ecb_fx` 7 196 qator.
+OpenAQ 24 × 182 = 4 368 emas, chunki API o'lchov bo'lmagan kunlarni qaytarmaydi.
+
+### Muhim qarorlar
+- **Dataflow'lar config'ni Lakehouse'dan o'qiydi, GitHub'dan emas.** GitHub raw URL Fabric'da eski versiyani qaytardi (`locations_path` yo'q edi). Lakehouse nusxasini esa pipeline har safar yangilaydi, ya'ni tartib aniq: avval config, keyin Dataflow.
+- **Kalit** `lh_bronze/Files/secrets/openaq_api_key.txt` da turadi. Dataflow uni **o'sha query ichida** o'qiydi va `X-API-Key` header'ida yuboradi. Kalit Git'da ham, kodda ham yo'q. Key Vault yo'q, chunki Azure obunasi yo'q. Trade-off: fayl OneLake'da ochiq matn, audit yo'q, kalit qo'lda almashtiriladi.
+- **Privacy level: hammasi Organizational.** Lakehouse (Organizational) ma'lumoti Public web manbaga yuborilsa, Power Query *Formula.Firewall* bilan bloklaydi.
+- **Connection URL'lari** (`http_github_raw`, `http_tlc`) connection'da qattiq yozilgan, chunki Fabric connection URL'ini parametrlab bo'lmaydi. Yo'l (relative URL) esa config'dan olinadi.
+
+### Tuzoqlar (himoyada aytish foydali)
+- Activity nomi ifodadagi nomga **harfma-harf** mos kelishi kerak (`Lookup1` ≠ `Lookup config`). Ifoda faqat **ulangan oldingi** activity'ga murojaat qila oladi.
+- M tili katta-kichik harfni farqlaydi: `configUrl` ≠ `ConfigUrl`.
+- Dataflow **Succeeded** bo'lishi ma'lumot yozilganini anglatmaydi: destination bo'lmasa, hech narsa yozilmaydi. Natijani doim jadvaldan tekshiramiz.
+- Yangi jadval bir necha daqiqa **Unidentified** da turishi mumkin, keyin **Refresh** qilinadi.
+- Saqlanmagan pipeline refresh'dan keyin yo'qoladi: **Ctrl+S**.
+
+### Asosiy tushunchalar
+- **Pipeline** = orkestratsiya (nima, qachon, qaysi tartibda). **Dataflow Gen2** = Power Query bilan low-code transformatsiya va ingestion.
+- **Lookup** config'ni o'qiydi, **ForEach** ro'yxat bo'yicha takrorlaydi, `item()` joriy element.
+- **Dynamic content** (`@...` ifodalar) qiymatlarni ish vaqtida hisoblaydi.
+- **Privacy levels** (Public < Organizational < Private) ma'lumot manbalar orasida qanday oqishini nazorat qiladi.
+
+### Ehtimoliy savollar
+1. *Nega taxi fayllari Pipeline bilan, API'lar Dataflow bilan yuklanadi?* Taxi: tayyor fayl, uni o'zgartirmasdan ko'chirish kifoya (Copy, Binary). API: JSON yoki CSV javob, sahifalash va header kerak, natija jadval bo'ladi (Power Query).
+2. *Yangi oy qanday qo'shiladi?* `config/sources.json` → `taxi.months` ga `"2024-07"` qo'shiladi → push → pipeline Run. Kod o'zgarmaydi.
+3. *Pipeline ikki marta ishlasa, dublikat bo'ladimi?* Yo'q. Fayllar ustiga yoziladi, jadvallar **Replace**.
+4. *Kalit qayerda va nega Git'da yo'q?* (yuqoridagi qarorga qarang).
+5. *Nega Dataflow'lar Lookup'ga emas, Copy config'ga ulangan?* Ular Lookup natijasini ishlatmaydi, faqat faylni o'qiydi. Bog'lanish haqiqiy ehtiyojni ko'rsatadi.
+
+### Live change mashqlari
+1. Config'ga yangi oy qo'shing (`2024-07`), push qiling, pipeline'ni ishga tushiring va `Files/taxi` da 7-fayl paydo bo'lganini ko'rsating.
+2. OpenAQ'ga yangi pollutant qo'shing: `openaq.parameters` ga `"pm10"`, push qiling, `df_openaq` ni ishga tushiring va `SELECT DISTINCT parameter` bilan tekshiring.
+3. ForEach'ni ketma-ket rejimga o'tkazing (**Sequential** ✓) va nima o'zgarishini tushuntiring (tezlik va resurs).
