@@ -363,3 +363,44 @@ OpenAQ 24 × 182 = 4 368 emas, chunki API o'lchov bo'lmagan kunlarni qaytarmaydi
 1. Config'ga yangi oy qo'shing (`2024-07`), push qiling, pipeline'ni ishga tushiring va `Files/taxi` da 7-fayl paydo bo'lganini ko'rsating.
 2. OpenAQ'ga yangi pollutant qo'shing: `openaq.parameters` ga `"pm10"`, push qiling, `df_openaq` ni ishga tushiring va `SELECT DISTINCT parameter` bilan tekshiring.
 3. ForEach'ni ketma-ket rejimga o'tkazing (**Sequential** ✓) va nima o'zgarishini tushuntiring (tezlik va resurs).
+
+---
+
+## Phase 2 — Silver (Fabric'da bajarildi, 2026-11-20)
+
+### Fayllar
+- **`fabric/nb_lib_*.Notebook/notebook-content.py`** (5 ta): faqat funksiyalar (pure functions). Ular Spark sessiyasini ishlatmaydi va import qilinganda hech narsa bajarmaydi. Testlar (`tests/`) aynan shu fayllarni o'qiydi, ya'ni kodning ikkinchi nusxasi yo'q.
+- **`fabric/nb_silver.Notebook/notebook-content.py`**: ishchi notebook. `%run` bilan 5 ta library'ni yuklaydi, config'ni `Files/config/sources.json` dan o'qiydi, har bir manbani o'qib, transform qilib, `lh_silver` ga yozadi.
+  Default lakehouse `lh_bronze`, shuning uchun `Files/...` qisqa yo'li ishlaydi. Silver'ga esa to'liq nom bilan yoziladi: `lh_silver.<jadval>`.
+- Notebook'larni men Fabric'ning haqiqiy formatida (Fabric commit qilgan bo'sh notebook'dan olingan) yozdim. Fabric'ga ular **Source control → Update all** orqali tushdi.
+
+### Natija (2026-11-20, 6 oy)
+| Jadval | Qatorlar |
+|---|---|
+| silver_taxi_trips / quarantine_taxi_trips | 20 237 796 / 94 297 |
+| silver_taxi_zones | 265 |
+| silver_air_quality / quarantine_air_quality | 4 271 / 3 |
+| silver_monitor_zones | 25 |
+| silver_gdp / quarantine_gdp | 66 / 0 |
+| silver_fx_daily / quarantine_fx | 10 182 / 62 |
+
+`save_split` har bir manba uchun **Bronze qatorlari = silver + quarantine** ekanini `assert` bilan tekshiradi. Bitta qator yo'qolsa yoki ikki marta yozilsa, notebook xato bilan to'xtaydi. ECB'da bu tekshiruv yo'q, chunki Silver to'liq kalendar: dam olish kunlari qo'shiladi va `is_filled = true` bo'ladi.
+
+Taxi qatorlariga lineage ustunlari qo'shiladi: `source_file` (`_metadata.file_path`) va `load_ts` (`_metadata.file_modification_time`, ya'ni fayl Bronze'ga yozilgan vaqt).
+
+### Muhim qarorlar
+- **Full reload** (`mode("overwrite")`): har safar hamma narsa qayta hisoblanadi. Natija har doim bir xil (idempotent), dublikat bo'lmaydi. 20 mln qator taxminan 2,5 daqiqada qayta ishlanadi, bu bizning hajm uchun yetarli.
+- **Har bir oy alohida transform qilinadi**, chunki `pickup_outside_file_month` qoidasi faylning oyini bilishi kerak. Keyin oylar `unionByName(allowMissingColumns=True)` bilan birlashtiriladi: oylar orasida ustun nomi yoki tartibi farq qilsa ham ishlaydi.
+- **Library va ishchi notebook alohida**: funksiyalarni lokal PySpark'da test qilish mumkin, ishchi notebook esa faqat o'qish va yozish bilan shug'ullanadi.
+
+### Ehtimoliy savollar
+1. *Qator yo'qolmaganini qanday isbotlaysiz?* `save_split` dagi assert: bronze = silver + quarantine. Natija notebook chiqishida ko'rinadi.
+2. *`%run` nima qiladi?* Boshqa notebook'ni **shu sessiyada** bajaradi va uning funksiyalari shu notebook'da paydo bo'ladi (xuddi kodni nusxalaganday).
+3. *Nega OpenAQ'da 3 ta qator quarantine'da?* `value` bo'sh yoki manfiy bo'lgan kunlar (`reject_reason` ustunida sababi yozilgan). `SELECT reject_reason, COUNT(*) FROM quarantine_air_quality GROUP BY reject_reason`.
+4. *Notebook ikki marta ishlasa nima bo'ladi?* Overwrite, natija o'sha-o'sha.
+5. *Nega Silver ECB'da qatorlar Bronze'dan ko'p?* Kalendar to'ldirilgan: har bir kun uchun kurs bor, bayram va dam olish kunlari oldingi kursni oladi.
+
+### Live change mashqlari
+1. `config/sources.json` → `taxi.quality.max_distance_mi` ni 100 dan 50 ga o'zgartiring → push → `pl_ingest` (config nusxasi) → `nb_silver`. `is_outlier` soni ortadi, kod o'zgarmaydi.
+2. Yangi quarantine qoidasi: `nb_lib_taxi.rejection_rules` ga `("zero_distance_long_trip", (F.col("trip_distance") == 0) & (F.col("trip_duration_min") > 60))` qo'shing, test yozing, natijani ko'rsating.
+3. `silver_air_quality` ga `is_weekend` ustunini qo'shing (`F.dayofweek("date").isin(1, 7)`).
