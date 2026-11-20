@@ -11,7 +11,7 @@ Har bir bosqichda nima qilinganini, nima uchun shunday qilinganini va savol-javo
 - **`config/sources.json`**: barcha manbalarning **yagona manbasi** (single source of truth): URL'lar, taxi oylari, koordinatalar, pollutantlar, jadval nomlari. Uni Pipeline (Lookup activity) ham, notebook'lar ham, lokal testlar ham o'qiydi. Kodda hech qanday URL yoki jadval nomi qattiq yozilmaydi (no hard-coded literals).
 - **`.gitignore`**: `.env` (kalit), `data/` (yuklangan fayllar) va `.venv/` Git'ga tushmaydi.
 - **`.env` / `.env.example`**: lokal sir (secret) `.env` da turadi. `.env.example` esa faqat kalit nomini ko'rsatadi, qiymatsiz.
-- **`drafts/`**: Fabric hali yo'qligi uchun library funksiyalari vaqtincha shu yerda yoziladi. Fabric'da notebook yaratilgach, kod u yerga bir marta ko'chiriladi va draft o'chiriladi.
+- **`drafts/`** (endi yo'q): Fabric item'lari yaratilguncha kod vaqtincha shu yerda turdi. Har bir kod Fabric item'iga ko'chirilgach, draft o'chirildi, shuning uchun kodning ikkinchi nusxasi qolmadi.
 - **`fabric/`**: Fabric Git integration papkasi. Fabric item'larni (`*.Notebook`, `*.DataPipeline`) o'zi shu yerga yozadi.
 - **`docs/`**: data dictionary, lineage (Mermaid), governance.
 
@@ -163,7 +163,7 @@ Uchta variantni solishtirdik:
 - **`fabric/nb_lib_openaq.Notebook/notebook-content.py`**: `transform_air_quality` (mahalliy sana, null/manfiy qiymatlar, dedup, `is_low_coverage`) va `transform_monitor_zones`.
 - **`fabric/nb_lib_worldbank.Notebook/notebook-content.py`**: `transform_gdp` (yilni int'ga o'tkazish, null qiymatni quarantine'ga yuborish).
 - **`fabric/nb_lib_ecb.Notebook/notebook-content.py`**: `transform_fx`: kalendar to'ldiriladi va dam olish kuni oxirgi mavjud kursni oladi (`is_filled`).
-- **`tests/notebook_loader.py`**: library fayllarni **`%run` kabi** yuklaydi: tartib bilan, bitta umumiy namespace'ga. Avval `fabric/<nom>.Notebook/notebook-content.py` qidiriladi, u bo'lmasa `drafts/<nom>.py` olinadi. Kodning ikkinchi nusxasi yo'q.
+- **`tests/notebook_loader.py`**: library fayllarni **`%run` kabi** yuklaydi: tartib bilan, bitta umumiy namespace'ga. Manba: `fabric/<nom>.Notebook/notebook-content.py`. Kodning ikkinchi nusxasi yo'q.
 - **`tests/test_*.py`**: 16 ta kichik test, har biri bir nechta qatorli namunalar bilan.
 - **`scripts/map_monitors_to_zones.py`** va **`reference/monitor_zones.csv`**: monitorni taxi zonasiga bog'lash, faqat lokal geopandas bilan.
 
@@ -247,11 +247,11 @@ Runtime 1.3 qo'llab-quvvatlashdan chiqarilmoqda (EOSA), standart runtime endi 2.
 
 ---
 
-## Gold layer (Phase 3 draft) — `drafts/warehouse/`
+## Gold layer (Phase 3, Fabric'da bajarildi 2026-11-20) — `fabric/wh_gold.Warehouse/`
 
 ### Fayllar
-- **`gold_ddl.sql`**: 5 ta dimension va 2 ta fact jadval, kalitlar bilan (`NOT ENFORCED`).
-- **`gold_load.sql`**: har jadval uchun bitta procedure (`load_dim_date`, …, `load_fact_taxi_daily`). Har biri jadvalni to'liq qayta yuklaydi (`DELETE + INSERT`). `TRUNCATE` ishlatilmaydi: Fabric Warehouse FK (hatto NOT ENFORCED) bilan bog'langan jadvalni TRUNCATE qilishga ruxsat bermaydi (Msg 4712).
+- **`dbo/Tables/*.sql`**: 5 ta dimension va 2 ta fact jadval (har bir obyekt alohida faylda, Fabric o'zi shunday saqlaydi), kalitlar bilan (`NOT ENFORCED`).
+- **`dbo/StoredProcedures/*.sql`**: har jadval uchun bitta procedure (`load_dim_date`, …, `load_fact_taxi_daily`). Har biri jadvalni to'liq qayta yuklaydi (`DELETE + INSERT`). `TRUNCATE` ishlatilmaydi: Fabric Warehouse FK (hatto NOT ENFORCED) bilan bog'langan jadvalni TRUNCATE qilishga ruxsat bermaydi (Msg 4712).
 - **`config/sources.json` → `gold.load_procedures`**: procedure'lar tartibi. Pipeline shu ro'yxat bo'yicha ketma-ket (Sequential) ForEach qiladi.
 
 ### Star schema
@@ -404,3 +404,8 @@ Taxi qatorlariga lineage ustunlari qo'shiladi: `source_file` (`_metadata.file_pa
 1. `config/sources.json` → `taxi.quality.max_distance_mi` ni 100 dan 50 ga o'zgartiring → push → `pl_ingest` (config nusxasi) → `nb_silver`. `is_outlier` soni ortadi, kod o'zgarmaydi.
 2. Yangi quarantine qoidasi: `nb_lib_taxi.rejection_rules` ga `("zero_distance_long_trip", (F.col("trip_distance") == 0) & (F.col("trip_duration_min") > 60))` qo'shing, test yozing, natijani ko'rsating.
 3. `silver_air_quality` ga `is_weekend` ustunini qo'shing (`F.dayofweek("date").isin(1, 7)`).
+
+### Phase 3 natija (2026-11-20)
+DimDate 182, DimZone 265, DimLocation 25, DimFX 182, DimGDP 66, FactTaxiDaily 41 745, FactAirQualityDaily 4 271.
+**Tekshiruv:** `SUM(trips)` (FactTaxiDaily) = void bo'lmagan Silver qatorlari = **19 791 824**. Demak aggregatsiyada hech narsa yo'qolmagan va hech narsa ikki marta sanalmagan.
+Silver'da 20 237 796 qator bor. Farq (~446 ming) void juftliklar: to'lov va uning bekor qilinishi. Ular safar emas, shuning uchun Gold'ga kirmaydi.

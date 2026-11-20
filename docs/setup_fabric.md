@@ -232,15 +232,25 @@ Sources: [T-SQL surface area](https://learn.microsoft.com/en-us/fabric/data-ware
 [GENERATE_SERIES](https://learn.microsoft.com/en-us/sql/t-sql/functions/generate-series-transact-sql?view=fabric),
 [Stored procedure activity](https://learn.microsoft.com/en-us/fabric/data-factory/stored-procedure-activity).
 
-### 3.1 Create the objects
+### 3.1 Create the objects ✅ (2026-11-20, Fabric commit `a8a6d1d`)
 
-1. Open `wh_gold` → **New SQL query** → paste `drafts/warehouse/gold_ddl.sql` → **Run**.
-2. **New SQL query** → paste `drafts/warehouse/gold_load.sql` → **Run** (it creates the procedures).
-3. Explorer → **+ Warehouses** → add `lh_silver`, so its tables are visible next to Gold.
-   Queries use three-part names: `lh_silver.dbo.silver_taxi_trips`.
-4. Test: `EXEC dbo.load_dim_date;` then `SELECT TOP 100 * FROM dbo.DimDate;`.
-5. **Source control** → **Commit**. The Warehouse is saved as a database project (one `.sql` file per
-   object). I then move these drafts into the item folder and delete `drafts/warehouse/`.
+The SQL lives in the Warehouse item: `fabric/wh_gold.Warehouse/dbo/Tables/*.sql` and
+`fabric/wh_gold.Warehouse/dbo/StoredProcedures/*.sql` (a database project, one file per object).
+
+First creation (done once, from drafts that were then deleted): `wh_gold` → **New SQL query** → table DDL → **Run**;
+then the procedures → **Run**; then `EXEC` each procedure in the order of `gold.load_procedures`; then
+**Source control** → **Commit**. Cross-database reads use three-part names (`lh_silver.dbo.silver_taxi_trips`).
+
+Lessons:
+- `TRUNCATE` fails with Msg 4712 on a table referenced by a foreign key, even a `NOT ENFORCED` one. The
+  procedures use `DELETE FROM` + `INSERT`.
+- `CREATE OR ALTER PROCEDURE` lets the script rerun.
+- GitHub raw can serve a cached old file for a few minutes. A commit-pinned URL
+  (`raw.githubusercontent.com/<owner>/<repo>/<commit sha>/<path>`) always gives that exact version.
+- The commit with cross-item references (`lh_silver`) worked; the fallback below was not needed.
+
+Result (6 months): DimDate 182, DimZone 265, DimLocation 25, DimFX 182, DimGDP 66, FactTaxiDaily 41,745,
+FactAirQualityDaily 4,271. Check: `SUM(trips)` in FactTaxiDaily = non-void rows in `silver_taxi_trips` = 19,791,824.
 
 ### 3.2 Load step in the pipeline
 

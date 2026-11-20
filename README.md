@@ -20,7 +20,6 @@ See [docs/lineage.md](docs/lineage.md).
 
 ```
 config/sources.json   single source of truth: sources, months, table names
-drafts/               library code before the Fabric notebook items exist (temporary)
 reference/            small committed reference data (monitor_zones.csv)
 scripts/              local one-off scripts (profiling, monitor mapping)
 fabric/               Fabric Git integration folder (*.Notebook, *.DataPipeline, ...)

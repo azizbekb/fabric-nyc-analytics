@@ -67,7 +67,7 @@ Source: ECB. One row per calendar day.
 
 ## Gold
 
-Warehouse `wh_gold`. DDL: `drafts/warehouse/gold_ddl.sql`; load procedures: `drafts/warehouse/gold_load.sql`
+Warehouse `wh_gold`. DDL: `fabric/wh_gold.Warehouse/dbo/Tables/`; load procedures: `fabric/wh_gold.Warehouse/dbo/StoredProcedures/`
 (full reload). Keys are `NOT ENFORCED` (Fabric). All money is in USD unless the name says `eur`.
 
 | Table | Grain | Columns | Source |
