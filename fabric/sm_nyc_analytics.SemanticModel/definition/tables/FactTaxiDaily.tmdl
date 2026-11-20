@@ -3,71 +3,60 @@ table FactTaxiDaily
 	sourceLineageTag: [dbo].[FactTaxiDaily]
 
 	measure 'Total Trips' = SUM ( FactTaxiDaily[trips] )
-		formatString: 0
+		formatString: #,0
 		lineageTag: 4373bdb8-ff9b-44f0-ba60-7f387b32ab89
 
 	measure 'Clean Trips' = SUM ( FactTaxiDaily[clean_trips] )
-		formatString: 0
+		formatString: #,0
 		lineageTag: 3e71b5db-a36f-448b-a467-4a80bb0c242a
 
 	measure 'Revenue USD' = SUM ( FactTaxiDaily[total_amount_usd] )
+		formatString: \$#,0
 		lineageTag: 9de09ac2-25a9-4fe6-83d6-00e374dd22d1
 
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
-
 	measure 'Revenue EUR' = SUM ( FactTaxiDaily[total_amount_eur] )
+		formatString: €#,0
 		lineageTag: 6ee4bf52-50d7-4587-b778-1bd67d844fbf
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	measure 'Avg Fare USD' = ```
 			
 			        DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_fare_usd] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
 			```
-		formatString: \$#,0.###############;(\$#,0.###############);\$#,0.###############
+		formatString: \$#,0.00
 		lineageTag: f42ce44c-1ea0-4548-a79a-503b6735bbe1
-
-		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
 	measure 'Avg Distance mi' = ```
 			
 			        DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_distance_mi] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
 			```
-		formatString: \$#,0.###############;(\$#,0.###############);\$#,0.###############
+		formatString: #,0.00
 		lineageTag: e333fc43-b161-4c6c-8b6f-2bf207307551
-
-		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
 	measure 'Avg Duration min' = ```
 			
 			        DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_duration_min] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
 			```
-		formatString: \$#,0.###############;(\$#,0.###############);\$#,0.###############
+		formatString: #,0.0
 		lineageTag: 3a903448-dbcc-4cbe-9c78-3a2204eee237
 
-		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
-
 	measure 'Trips per Day' = DIVIDE ( [Total Trips], DISTINCTCOUNT ( FactTaxiDaily[date_key] ) )
+		formatString: #,0
 		lineageTag: b378a9c2-3fec-43ab-b852-fdc608037e89
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	measure 'Trips 7d Avg' = ```
 			
 			        AVERAGEX ( DATESINPERIOD ( DimDate[date], MAX ( DimDate[date] ), -7, DAY ), [Total Trips] )
 			```
+		formatString: #,0
 		lineageTag: c9e6813e-115c-4b7d-b890-3b7b48e3a9f4
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	measure 'Trips MoM %' = ```
 			
 			        VAR Previous = CALCULATE ( [Total Trips], DATEADD ( DimDate[date], -1, MONTH ) )
 			        RETURN DIVIDE ( [Total Trips] - Previous, Previous )
 			```
+		formatString: 0.0%
 		lineageTag: 371ed77e-e8cb-410c-b41f-fa682a374bd6
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	measure 'Trips vs PM2.5 Correlation' = ```
 			
@@ -83,9 +72,8 @@ table FactTaxiDaily
 			        VAR SdY = SQRT ( SUMX ( Days, ( [@y] - MeanY ) ^ 2 ) )
 			        RETURN DIVIDE ( Cov, SdX * SdY )
 			```
+		formatString: 0.00
 		lineageTag: 0db77e66-3fd9-4335-9de5-b27be0d6c268
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	column date_key
 		dataType: int64

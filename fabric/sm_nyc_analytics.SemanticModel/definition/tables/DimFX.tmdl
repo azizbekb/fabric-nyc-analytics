@@ -3,9 +3,8 @@ table DimFX
 	sourceLineageTag: [dbo].[DimFX]
 
 	measure 'USD per EUR' = AVERAGE ( DimFX[usd_per_eur] )
+		formatString: 0.0000
 		lineageTag: b25d0b80-8e30-44fb-aca5-95c4efbf8d50
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	column date_key
 		dataType: int64

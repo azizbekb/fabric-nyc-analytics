@@ -409,3 +409,44 @@ Taxi qatorlariga lineage ustunlari qo'shiladi: `source_file` (`_metadata.file_pa
 DimDate 182, DimZone 265, DimLocation 25, DimFX 182, DimGDP 66, FactTaxiDaily 41 745, FactAirQualityDaily 4 271.
 **Tekshiruv:** `SUM(trips)` (FactTaxiDaily) = void bo'lmagan Silver qatorlari = **19 791 824**. Demak aggregatsiyada hech narsa yo'qolmagan va hech narsa ikki marta sanalmagan.
 Silver'da 20 237 796 qator bor. Farq (~446 ming) void juftliklar: to'lov va uning bekor qilinishi. Ular safar emas, shuning uchun Gold'ga kirmaydi.
+
+---
+
+## Phase 4 — Power BI (Fabric'da bajarildi, 2026-11-20)
+
+### Fayllar
+- **`fabric/sm_nyc_analytics.SemanticModel/`**: semantic model TMDL formatida (matn ko'rinishida). `definition/relationships.tmdl` da 6 ta bog'lanish, `definition/tables/*.tmdl` da jadvallar va 16 ta DAX measure (format bilan).
+- **`fabric/rpt_nyc_analytics.Report/`**: hisobot PBIR formatida. Har bir sahifa va har bir vizual alohida JSON faylda saqlanadi.
+- Measure'larni avval DAX query view'da sinab ko'rdik (`DEFINE MEASURE … EVALUATE`), keyin modelga qo'shdik. Endi ular faqat TMDL'da turadi, alohida `.dax` fayl yo'q.
+
+### Model
+- **Direct Lake on SQL**: Power BI Warehouse'dagi Delta fayllarni nusxa olmasdan o'qiydi. Rejim Import kabi tez ishlaydi, lekin alohida import refresh kerak emas. Ma'lumot yoki model tuzilmasi o'zgarsa, model **refresh** (framing) qilinadi.
+- Bog'lanishlar dimension'dan fakt tomonga, **bir yo'nalishda** ishlaydi: FactTaxiDaily → DimDate, DimZone; FactAirQualityDaily → DimDate, DimLocation; DimFX → DimDate (*:1); DimDate → DimGDP (yil bo'yicha *:1). Avval DimFX 1:1 va ikki tomonlama edi, uni *:1 va bir yo'nalishli qilib o'zgartirdik: ikki tomonlama filtr noaniq filtr yo'llarini yaratadi.
+- `DimDate` **date table** sifatida belgilangan (`dataCategory: Time`), `month_name` esa `month` bo'yicha saralanadi.
+
+### Measure'lar (asosiylari)
+- `Total Trips`, `Revenue USD/EUR`, `Trips per Day`, `Trips 7d Avg` (`DATESINPERIOD`), `Trips MoM %` (`DATEADD`).
+- `Avg Fare/Distance/Duration`: **og'irlikli o'rtacha**. Kunlik o'rtacha shu kunning `clean_trips` soniga ko'paytiriladi. Oddiy o'rtachada 3 ta safarli zona 3 000 ta safarli zona bilan bir xil vaznga ega bo'lib qolardi. Outlier'lar (`clean_trips` dan tashqari) o'rtachaga kirmaydi.
+- `PM2.5/NO2/O3 Avg`: `is_low_coverage` kunlar hisobga olinmaydi.
+- `Trips vs PM2.5 Correlation`: kunlar bo'yicha Pearson koeffitsienti (−1 … 1), DAX'da qo'lda hisoblangan (kovariatsiya / standart og'ishlar).
+
+### Hisobot (3 sahifa)
+1. **Taxi**: kartochkalar, kunlik safarlar va 7 kunlik o'rtacha, borough bo'yicha, **Top 10 pickup zones** (Top N filtri), oy slicer'i.
+2. **Air quality**: PM2.5 (µg/m³) va NO2/O3 (ppm) **alohida** grafiklarda, chunki birliklar har xil va bitta o'qda NO2/O3 nolga o'xshab ko'rinardi. Monitorlar jadvali.
+3. **Taxi, air & economy**: safarlar (ustun) + PM2.5 (chiziq) bitta grafikda, korrelyatsiya, Revenue EUR, GDP, USD/EUR kursi.
+
+### Tekshiruvlar
+- Yanvar: DAX `Total Trips` = 2 896 290, `Revenue USD` = 79 563 881.08. Bu lokal `scripts/check_gold.py` natijasi bilan bir xil.
+- Slicer'dagi "(Blank)": SQL (FK `NOT ENFORCED` bo'lgani uchun "yetim" kalitlarni tekshirdik) va DAX bilan bog'lanmagan qatorlar 0 ekanini isbotladik. Demak bu Direct Lake'ning texnik "noma'lum a'zo" qatori, unga hech qanday qator bog'lanmagan. Slicer'da **is not blank** filtri bilan yashirildi.
+
+### Ehtimoliy savollar
+1. *Nega Direct Lake, Import emas?* Ma'lumot nusxasi yo'q, Gold yangilangach model refresh (framing) bilan darhol yangi holatni ko'radi.
+2. *Nega o'rtacha narx og'irlikli?* (yuqoriga qarang).
+3. *Korrelyatsiya qanday hisoblanadi va nimani ko'rsatadi?* Kunlik juftliklar (safarlar, PM2.5) bo'yicha Pearson. Korrelyatsiya sabab-oqibatni isbotlamaydi.
+4. *Nega NO2 ko'p monitorda bo'sh?* NYC atrofidagi NO2 monitorlari faqat New Jersey'da (Phase 1 da aniqlangan).
+5. *Model va hisobot Git'da qanday saqlanadi?* TMDL va PBIR, ya'ni matn fayllari. O'zgarishlarni diff qilib ko'rish mumkin.
+
+### Live change mashqlari
+1. Yangi measure: `Avg Tip USD` (Gold'ga `tip_amount` qo'shib) yoki `Revenue per Trip = DIVIDE([Revenue USD], [Total Trips])`. Uni DAX query view'da yozing → **Update model**.
+2. Taxi sahifasiga `DimDate[day_name]` bo'yicha safarlar grafigini qo'shing (`day_name` ni `day_of_week` bo'yicha saralang).
+3. Top 10 zonani Top 5 ga o'zgartiring (Filters → Top N).

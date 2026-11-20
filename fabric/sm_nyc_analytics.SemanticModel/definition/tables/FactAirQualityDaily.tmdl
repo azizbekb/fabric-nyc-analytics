@@ -6,25 +6,22 @@ table FactAirQualityDaily
 			
 			        CALCULATE ( AVERAGE ( FactAirQualityDaily[avg_value] ), FactAirQualityDaily[parameter] = "pm25", FactAirQualityDaily[is_low_coverage] = FALSE () )
 			```
+		formatString: 0.00
 		lineageTag: 63728860-20cd-49c3-821e-b205d192512d
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	measure 'NO2 Avg' = ```
 			
 			        CALCULATE ( AVERAGE ( FactAirQualityDaily[avg_value] ), FactAirQualityDaily[parameter] = "no2", FactAirQualityDaily[is_low_coverage] = FALSE () )
 			```
+		formatString: 0.000
 		lineageTag: 3717866c-1079-4bca-b336-008b5cd94f54
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	measure 'O3 Avg' = ```
 			
 			        CALCULATE ( AVERAGE ( FactAirQualityDaily[avg_value] ), FactAirQualityDaily[parameter] = "o3", FactAirQualityDaily[is_low_coverage] = FALSE () )
 			```
+		formatString: 0.000
 		lineageTag: 09b5864d-47ea-432c-a043-b46263b67585
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	column date_key
 		dataType: int64
