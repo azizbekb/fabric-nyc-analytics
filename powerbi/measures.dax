@@ -1,0 +1,54 @@
+// DAX measures for sm_nyc_analytics. Paste into DAX query view, Run, then "Update model with changes".
+// Averages are weighted by trips, because the fact table already stores daily averages per zone.
+// Air quality measures skip days with low sensor coverage (is_low_coverage).
+DEFINE
+    MEASURE FactTaxiDaily[Trips] = SUM ( FactTaxiDaily[trips] )
+    MEASURE FactTaxiDaily[Clean Trips] = SUM ( FactTaxiDaily[clean_trips] )
+    MEASURE FactTaxiDaily[Revenue USD] = SUM ( FactTaxiDaily[total_amount_usd] )
+    MEASURE FactTaxiDaily[Revenue EUR] = SUM ( FactTaxiDaily[total_amount_eur] )
+    MEASURE FactTaxiDaily[Avg Fare USD] =
+        DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_fare_usd] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
+    MEASURE FactTaxiDaily[Avg Distance mi] =
+        DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_distance_mi] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
+    MEASURE FactTaxiDaily[Avg Duration min] =
+        DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_duration_min] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
+    MEASURE FactTaxiDaily[Trips per Day] = DIVIDE ( [Trips], DISTINCTCOUNT ( FactTaxiDaily[date_key] ) )
+    MEASURE FactTaxiDaily[Trips 7d Avg] =
+        AVERAGEX ( DATESINPERIOD ( DimDate[date], MAX ( DimDate[date] ), -7, DAY ), [Trips] )
+    MEASURE FactTaxiDaily[Trips MoM %] =
+        VAR Previous = CALCULATE ( [Trips], DATEADD ( DimDate[date], -1, MONTH ) )
+        RETURN DIVIDE ( [Trips] - Previous, Previous )
+    MEASURE FactAirQualityDaily[PM2.5 Avg] =
+        CALCULATE ( AVERAGE ( FactAirQualityDaily[avg_value] ), FactAirQualityDaily[parameter] = "pm25", FactAirQualityDaily[is_low_coverage] = FALSE () )
+    MEASURE FactAirQualityDaily[NO2 Avg] =
+        CALCULATE ( AVERAGE ( FactAirQualityDaily[avg_value] ), FactAirQualityDaily[parameter] = "no2", FactAirQualityDaily[is_low_coverage] = FALSE () )
+    MEASURE FactAirQualityDaily[O3 Avg] =
+        CALCULATE ( AVERAGE ( FactAirQualityDaily[avg_value] ), FactAirQualityDaily[parameter] = "o3", FactAirQualityDaily[is_low_coverage] = FALSE () )
+    MEASURE FactTaxiDaily[Trips vs PM2.5 Correlation] =
+        VAR Days =
+            FILTER (
+                ADDCOLUMNS ( VALUES ( DimDate[date] ), "@x", [Trips], "@y", [PM2.5 Avg] ),
+                NOT ISBLANK ( [@x] ) && NOT ISBLANK ( [@y] )
+            )
+        VAR MeanX = AVERAGEX ( Days, [@x] )
+        VAR MeanY = AVERAGEX ( Days, [@y] )
+        VAR Cov = SUMX ( Days, ( [@x] - MeanX ) * ( [@y] - MeanY ) )
+        VAR SdX = SQRT ( SUMX ( Days, ( [@x] - MeanX ) ^ 2 ) )
+        VAR SdY = SQRT ( SUMX ( Days, ( [@y] - MeanY ) ^ 2 ) )
+        RETURN DIVIDE ( Cov, SdX * SdY )
+    MEASURE DimFX[USD per EUR] = AVERAGE ( DimFX[usd_per_eur] )
+    MEASURE DimGDP[GDP USD bn] = DIVIDE ( SUM ( DimGDP[gdp_usd] ), 1e9 )
+
+EVALUATE
+SUMMARIZECOLUMNS (
+    DimDate[month],
+    DimDate[month_name],
+    "Trips", [Trips],
+    "Revenue USD", [Revenue USD],
+    "Avg Fare USD", [Avg Fare USD],
+    "Trips MoM %", [Trips MoM %],
+    "PM2.5 Avg", [PM2.5 Avg],
+    "USD per EUR", [USD per EUR],
+    "Trips vs PM2.5 Correlation", [Trips vs PM2.5 Correlation]
+)
+ORDER BY DimDate[month]
