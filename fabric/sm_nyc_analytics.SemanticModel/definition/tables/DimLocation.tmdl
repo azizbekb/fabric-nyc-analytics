@@ -1,0 +1,89 @@
+table DimLocation
+	lineageTag: 86b2f9a1-9d21-4af2-928b-4d2f137d331f
+	sourceLineageTag: [dbo].[DimLocation]
+
+	column location_id
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: 85d750d3-fb2d-4b0c-9f01-08390d8cae09
+		sourceLineageTag: location_id
+		summarizeBy: none
+		sourceColumn: location_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column location_name
+		dataType: string
+		sourceProviderType: varchar(100)
+		lineageTag: cb319ddd-8f2f-4b96-9c3b-5513ad2d7cc3
+		sourceLineageTag: location_name
+		summarizeBy: none
+		sourceColumn: location_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column latitude
+		dataType: double
+		sourceProviderType: float
+		lineageTag: abdb5025-5cbf-460b-91f6-b91e3259ffec
+		sourceLineageTag: latitude
+		summarizeBy: none
+		sourceColumn: latitude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column longitude
+		dataType: double
+		sourceProviderType: float
+		lineageTag: 35ecbaa7-a025-4c61-94ea-56f6672034a4
+		sourceLineageTag: longitude
+		summarizeBy: none
+		sourceColumn: longitude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column zone_id
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: 8a0a275b-8380-4e1c-8e26-2b5c6b0f104c
+		sourceLineageTag: zone_id
+		summarizeBy: none
+		sourceColumn: zone_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column zone
+		dataType: string
+		sourceProviderType: varchar(100)
+		lineageTag: 5a623540-0fc4-4cb6-a618-f21e2911c4d2
+		sourceLineageTag: zone
+		summarizeBy: none
+		sourceColumn: zone
+
+		annotation SummarizationSetBy = Automatic
+
+	column borough
+		dataType: string
+		sourceProviderType: varchar(20)
+		lineageTag: dd5e5102-77a0-4e4d-9360-697849a441bd
+		sourceLineageTag: borough
+		summarizeBy: none
+		sourceColumn: borough
+
+		annotation SummarizationSetBy = Automatic
+
+	partition DimLocation = entity
+		mode: directLake
+		source
+			entityName: DimLocation
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+
+	annotation PBI_ResultType = Table
+

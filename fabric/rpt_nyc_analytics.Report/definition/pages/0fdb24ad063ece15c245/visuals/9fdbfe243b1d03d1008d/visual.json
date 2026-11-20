@@ -1,0 +1,80 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.15.0/schema.json",
+  "name": "9fdbfe243b1d03d1008d",
+  "position": {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "height": 299.58997722095671,
+    "width": 868.15489749430526,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "cardVisual",
+    "query": {
+      "queryState": {
+        "Data": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactTaxiDaily"
+                    }
+                  },
+                  "Property": "Total Trips"
+                }
+              },
+              "queryRef": "FactTaxiDaily.Total Trips",
+              "nativeQueryRef": "Total Trips"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactTaxiDaily"
+                    }
+                  },
+                  "Property": "Revenue USD"
+                }
+              },
+              "queryRef": "FactTaxiDaily.Revenue USD",
+              "nativeQueryRef": "Revenue USD"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactTaxiDaily"
+                    }
+                  },
+                  "Property": "Avg Fare USD"
+                }
+              },
+              "queryRef": "FactTaxiDaily.Avg Fare USD",
+              "nativeQueryRef": "Avg Fare USD"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactTaxiDaily"
+                    }
+                  },
+                  "Property": "Trips per Day"
+                }
+              },
+              "queryRef": "FactTaxiDaily.Trips per Day",
+              "nativeQueryRef": "Trips per Day"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

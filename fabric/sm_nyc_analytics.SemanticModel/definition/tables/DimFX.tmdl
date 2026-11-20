@@ -1,0 +1,63 @@
+table DimFX
+	lineageTag: 46f9b0fa-51be-4578-818c-3073895ac4c0
+	sourceLineageTag: [dbo].[DimFX]
+
+	measure 'USD per EUR' = AVERAGE ( DimFX[usd_per_eur] )
+		lineageTag: b25d0b80-8e30-44fb-aca5-95c4efbf8d50
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column date_key
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: 45833c48-4c34-4cb9-958c-e8ebb10e9f32
+		sourceLineageTag: date_key
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column date
+		dataType: dateTime
+		formatString: General Date
+		sourceProviderType: date
+		lineageTag: f1063151-d631-4eb4-b1f1-3661404a439d
+		sourceLineageTag: date
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation SummarizationSetBy = Automatic
+
+	column usd_per_eur
+		dataType: double
+		sourceProviderType: decimal(10, 6)
+		lineageTag: 56c12589-6fc6-4ac1-8381-8453b3bbbdcd
+		sourceLineageTag: usd_per_eur
+		summarizeBy: sum
+		sourceColumn: usd_per_eur
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column is_filled
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		sourceProviderType: bit
+		lineageTag: 9c74bfc8-eef9-4ad3-b3ee-38f9dc4d6019
+		sourceLineageTag: is_filled
+		summarizeBy: none
+		sourceColumn: is_filled
+
+		annotation SummarizationSetBy = Automatic
+
+	partition DimFX = entity
+		mode: directLake
+		source
+			entityName: DimFX
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+
+	annotation PBI_ResultType = Table
+

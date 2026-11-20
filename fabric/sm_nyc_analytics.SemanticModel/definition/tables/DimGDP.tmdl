@@ -1,0 +1,51 @@
+table DimGDP
+	lineageTag: 43537b83-78aa-4232-bfed-31c61edb69d9
+	sourceLineageTag: [dbo].[DimGDP]
+
+	measure 'GDP USD bn' = DIVIDE ( SUM ( DimGDP[gdp_usd] ), 1e9 )
+		lineageTag: f9d2c4fc-5be9-4030-807b-700e34952390
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column year
+		dataType: int64
+		formatString: 0
+		sourceProviderType: smallint
+		lineageTag: 9ad05033-b07c-4394-a6bc-af7ee5a17bf7
+		sourceLineageTag: year
+		summarizeBy: none
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column country_code
+		dataType: string
+		sourceProviderType: varchar(3)
+		lineageTag: f1c8f5cc-c152-4ee1-aaf3-e9f10e1f751c
+		sourceLineageTag: country_code
+		summarizeBy: none
+		sourceColumn: country_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column gdp_usd
+		dataType: double
+		sourceProviderType: decimal(20, 2)
+		lineageTag: a996679e-53b1-478f-8b8f-c2c6c9460036
+		sourceLineageTag: gdp_usd
+		summarizeBy: none
+		sourceColumn: gdp_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition DimGDP = entity
+		mode: directLake
+		source
+			entityName: DimGDP
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+
+	annotation PBI_ResultType = Table
+
