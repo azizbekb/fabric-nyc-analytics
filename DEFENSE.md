@@ -304,19 +304,19 @@ Biror tekshiruv o'tmasa, skript `exit 1` bilan tugaydi.
 
 ### Live change mashqlari
 1. **FactTaxiDaily'ga yangi ustun (`total_tip_usd`) qo'shish:**
-   - `gold_ddl.sql`: `total_tip_usd decimal(18, 2) NULL` qatorini qo'shing (mavjud jadval uchun `ALTER TABLE dbo.FactTaxiDaily ADD total_tip_usd decimal(18,2) NULL;`);
+   - `fabric/wh_gold.Warehouse/dbo/Tables/FactTaxiDaily.sql`: `total_tip_usd decimal(18, 2) NULL` qatorini qo'shing (mavjud jadval uchun `ALTER TABLE dbo.FactTaxiDaily ADD total_tip_usd decimal(18,2) NULL;`);
    - `load_fact_taxi_daily`: ichki SELECT'ga `CAST(SUM(t.tip_amount) AS decimal(18, 2)) AS total_tip_usd`, INSERT ro'yxatiga esa ustun nomini qo'shing;
    - `check_gold.py` dagi `fact_taxi_daily` ga `F.sum("tip_amount")` ni qo'shing;
    - pipeline'ni ishga tushiring.
 2. **Kunlikdan soatlikka o'tish:** `GROUP BY` ga `t.pickup_hour` ni qo'shing, yangi `hour` ustuni yarating va grain'ni "kun × soat × zona" deb o'zgartiring. Data dictionary'ni ham yangilang. Silver'da `pickup_hour` allaqachon bor.
-3. **Yangi Gold jadval qo'shish (extendability):** `gold_ddl.sql` ga yangi `CREATE TABLE`, `gold_load.sql` ga yangi `load_<nom>` procedure yozing va `config/sources.json` → `gold.load_procedures` ro'yxatiga nomini qo'shing. Pipeline'ni o'zgartirish shart emas.
+3. **Yangi Gold jadval qo'shish (extendability):** Warehouse'da yangi `CREATE TABLE` va yangi `load_<nom>` procedure yarating (Git'da `dbo/Tables/` va `dbo/StoredProcedures/` ga fayl bo'lib tushadi) va `config/sources.json` → `gold.load_procedures` ro'yxatiga nomini qo'shing. Pipeline'ni o'zgartirish shart emas.
 
 ---
 
 ## Phase 1 — Bronze ingestion (Fabric'da bajarildi, 2026-11-12)
 
 ### Fayllar (Fabric Git'ga o'zi yozgan)
-- **`fabric/pl_ingest.DataPipeline/pipeline-content.json`**: pipeline JSON ko'rinishida. Activity'lar va ularning `dependsOn` bog'lanishlari:
+- **`fabric/pl_daily.DataPipeline/pipeline-content.json`** (Phase 1 da nomi `pl_ingest` edi): pipeline JSON ko'rinishida. Activity'lar va ularning `dependsOn` bog'lanishlari:
   `Copy config` → `Lookup config` → (`ForEach taxi month`, `Copy taxi zones`, `Copy monitor zones`); `Copy config` → (`Run df_ecb`, `Run df_worldbank`, `Run df_openaq`).
 - **`fabric/df_*.Dataflow/mashup.pq`**: Dataflow'ning M kodi (Power Query). `queryMetadata.json`: query nomlari va connection havolalari (parol yoki kalit yo'q). `.platform`: item turi va id.
 
@@ -401,7 +401,7 @@ Taxi qatorlariga lineage ustunlari qo'shiladi: `source_file` (`_metadata.file_pa
 5. *Nega Silver ECB'da qatorlar Bronze'dan ko'p?* Kalendar to'ldirilgan: har bir kun uchun kurs bor, bayram va dam olish kunlari oldingi kursni oladi.
 
 ### Live change mashqlari
-1. `config/sources.json` → `taxi.quality.max_distance_mi` ni 100 dan 50 ga o'zgartiring → push → `pl_ingest` (config nusxasi) → `nb_silver`. `is_outlier` soni ortadi, kod o'zgarmaydi.
+1. `config/sources.json` → `taxi.quality.max_distance_mi` ni 100 dan 50 ga o'zgartiring → push → `pl_daily` (config nusxasi) → `nb_silver`. `is_outlier` soni ortadi, kod o'zgarmaydi.
 2. Yangi quarantine qoidasi: `nb_lib_taxi.rejection_rules` ga `("zero_distance_long_trip", (F.col("trip_distance") == 0) & (F.col("trip_duration_min") > 60))` qo'shing, test yozing, natijani ko'rsating.
 3. `silver_air_quality` ga `is_weekend` ustunini qo'shing (`F.dayofweek("date").isin(1, 7)`).
 
@@ -455,3 +455,37 @@ Silver'da 20 237 796 qator bor. Farq (~446 ming) void juftliklar: to'lov va unin
 1. Yangi measure: `Avg Tip USD` (Gold'ga `tip_amount` qo'shib) yoki `Revenue per Trip = DIVIDE([Revenue USD], [Total Trips])`. Uni DAX query view'da yozing → **Update model**.
 2. Taxi sahifasiga `DimDate[day_name]` bo'yicha safarlar grafigini qo'shing (`day_name` ni `day_of_week` bo'yicha saralang).
 3. Top 10 zonani Top 5 ga o'zgartiring (Filters → Top N).
+
+---
+
+## Phase 5 — Orkestratsiya va kunlik schedule (2026-11-20)
+
+### Fayllar
+- **`fabric/pl_daily.DataPipeline/pipeline-content.json`**: butun oqim bitta pipeline'da. `pl_ingest` nomi `pl_daily` ga o'zgartirildi (Git buni rename deb ko'rsatadi).
+- **`fabric/pl_daily.DataPipeline/.schedules`**: kunlik 06:00, `West Asia Standard Time` (= Toshkent, UTC+5), 2026-11-21 … 2026-12-31.
+
+### Ketma-ketlik
+Bronze (6 activity) → `Run nb_silver` → `Refresh silver endpoint` → `ForEach gold procedure` (7 procedure, **Sequential**) → `Refresh model`. Hamma strelkalar **On success**.
+
+### Muhim qarorlar
+- **Nega notebook'ga 6 ta strelka?** `nb_silver` **barcha** Bronze ma'lumotlarini o'qiydi. Bitta strelka bo'lsa, u boshqa yuklashlar tugamasdan boshlanib, eski yoki yarim ma'lumotni o'qib qolishi mumkin.
+- **Nega SQL endpoint refresh?** Notebook Delta jadvallarni yozadi, lekin SQL endpoint ularni biroz kechikib ko'radi. Gold procedure'lari `lh_silver.dbo.*` ni SQL orqali o'qiydi, shuning uchun avval endpoint yangilanadi.
+- **Nega Sequential?** Tartib config'da: avval Dim'lar, keyin Fact'lar. `load_dim_fx` esa `DimDate` ni o'qiydi.
+- **Nega procedure nomlari config'da?** Yangi Gold jadval qo'shilsa, faqat config'ga nom qo'shiladi, pipeline o'zgarmaydi.
+- **Nega kuniga bir marta qayta ishga tushirish xavfsiz?** Har bir qadam o'z natijasini qayta yozadi (Replace, overwrite, `DELETE`+`INSERT`), shuning uchun dublikat paydo bo'lmaydi.
+- **Xato bo'lsa nima bo'ladi?** Keyingi qadamlar ishlamaydi, shuning uchun Gold hech qachon chala Silver'dan yuklanmaydi. Masalan, `df_openaq` xato bersa, Gold va hisobot kechagi holatida qoladi. Xatolar **Monitor** da ko'rinadi. Email xabarnoma faqat tenant ichidagi manzilga ishlaydi.
+
+### Tuzoq (haqiqatda bo'lgan)
+Birinchi commit'da `Run df_openaq` → `Run nb_silver` strelkasi yo'q edi. Run vaqtlari buni ko'rsatdi: notebook 11:45:59 da boshlandi, `df_openaq` esa 11:46:58 da tugadi. Bu Git'dagi `dependsOn` ni o'qib topildi va tuzatildi. Saboq: commit'dan keyin pipeline JSON'ini tekshirish kerak.
+
+### Natija
+Birinchi to'liq run (2026-11-20) taxminan 8 daqiqa davom etdi, hammasi **Succeeded**: `nb_silver` 4m 54s, 7 procedure 45s.
+
+### Ehtimoliy savollar
+1. Pipeline'ning qaysi qismi parallel, qaysi qismi ketma-ket ishlaydi va nega?
+2. Agar `df_openaq` xato bersa, Power BI'da nima ko'rinadi?
+3. Schedule vaqtini qayerdan o'zgartirasiz va bu Git'da qayerda ko'rinadi?
+
+### Live change mashqlari
+1. Schedule'ni 06:00 dan 07:30 ga o'zgartiring (**Run → Schedule → Edit**) → commit → `.schedules` faylidagi o'zgarishni ko'rsating.
+2. `taxi.months` ga `2024-07` ni qo'shing → push → `pl_daily` → **Run**. Pipeline ham, kod ham o'zgarmaydi.

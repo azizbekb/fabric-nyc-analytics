@@ -30,7 +30,7 @@ DEFENSE.md            defense notes (Uzbek)
 
 ## Setup from scratch
 
-Step by step: [docs/setup_fabric.md](docs/setup_fabric.md) (Phase 0: capacity, workspace, Runtime 2.0, lakehouses, warehouse, Git; Phase 1: pipeline and dataflows).
+Step by step: [docs/setup_fabric.md](docs/setup_fabric.md) (Phase 0: capacity, workspace, Runtime 2.0, lakehouses, warehouse, Git; Phase 1: pipeline and dataflows; Phase 3: warehouse; Phase 5: orchestration and schedule).
 
 ### Local development
 
@@ -68,7 +68,17 @@ _TODO (Phase 0): record where it is set (Workspace settings → Data Engineering
 
 ## How to run
 
-_TODO (Phase 5): orchestration pipeline and schedule._
+Everything runs from one pipeline, **`pl_daily`** (scheduled daily at 06:00, Tashkent time):
+
+```
+Copy config → Lookup config → taxi months, zone files ┐
+            └→ df_ecb, df_worldbank, df_openaq ────────┴→ nb_silver → refresh lh_silver endpoint
+                                                          → Gold procedures (sequential) → refresh model
+```
+
+Manual run: open `pl_daily` → **Run**, then watch the **Output** tab (about 8 minutes).
+To change months, sources or quality limits, edit `config/sources.json` and push: the pipeline copies
+the config from GitHub at the start of each run. Details: [docs/setup_fabric.md](docs/setup_fabric.md#phase-5-orchestration-and-schedule).
 
 ## How to add a new source
 

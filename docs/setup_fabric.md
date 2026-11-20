@@ -1,4 +1,4 @@
-# Fabric setup guide (Phase 0 and Phase 1)
+# Fabric setup guide (Phases 0–5)
 
 Click-by-click steps, checked against Microsoft Learn on 2026-11-10. Menu labels are in **bold**,
 exactly as the docs write them. If the portal shows something different, stop and note it here.
@@ -135,9 +135,9 @@ even inside one query: a small notebook reads the file and returns it with `note
 (activity **Secure output** ✓), and the pipeline passes it to a required Dataflow public parameter
 (activity **Secure input** ✓).
 
-### 1.2 Pipeline `pl_ingest` ✅ (2026-11-12)
+### 1.2 Pipeline `pl_ingest` ✅ (2026-11-12; renamed `pl_daily` in Phase 5)
 
-Workspace → **+ New item** → **Pipeline** → name `pl_ingest`. Below, `cfg` stands for
+Workspace → **+ New item** → **Pipeline** → name `pl_ingest` (renamed later, see [Phase 5](#phase-5-orchestration-and-schedule)). Below, `cfg` stands for
 `activity('Lookup config').output.firstRow`.
 
 Two HTTP connections (create them in the first Copy activity via **Connection** → **New** →
@@ -178,7 +178,7 @@ For each dataflow: workspace `nyc-analytics` → **+ New item** → **Dataflow G
 Bronze table name from config (`ecb.bronze_table`, …).
 
 **Config is read from `lh_bronze/Files/config/sources.json`**, the copy made by `Copy config` in
-`pl_ingest`, not from GitHub. Reason: reading the GitHub raw URL from `df_openaq` returned an old
+the pipeline, not from GitHub. Reason: reading the GitHub raw URL from `df_openaq` returned an old
 version of the file without `openaq.locations_path` (cached). Reading the Lakehouse copy also gives
 one order: the pipeline refreshes the config first, then the dataflows read it.
 
@@ -252,7 +252,7 @@ Lessons:
 Result (6 months): DimDate 182, DimZone 265, DimLocation 25, DimFX 182, DimGDP 66, FactTaxiDaily 41,745,
 FactAirQualityDaily 4,271. Check: `SUM(trips)` in FactTaxiDaily = non-void rows in `silver_taxi_trips` = 19,791,824.
 
-### 3.2 Load step in the pipeline
+### 3.2 Load step in the pipeline ✅ (done in Phase 5)
 
 1. **Refresh SQL analytics endpoint** activity for `lh_silver`, so the Warehouse reads the Delta
    tables the notebooks just wrote.
@@ -270,3 +270,39 @@ load SQL from a pipeline **Script** activity instead (same statements). Note the
 Fabric T-SQL rules applied: `varchar` not `nvarchar`, `date`/`datetime2` not `datetime`,
 `smallint` not `tinyint`; keys only via `ALTER TABLE … NONCLUSTERED … NOT ENFORCED`;
 no default constraints, triggers, recursive CTEs or system-table queries (DimDate uses `GENERATE_SERIES`).
+
+---
+
+## Phase 5: orchestration and schedule
+
+### 5.1 One pipeline for the whole flow ✅ (2026-11-20)
+
+`pl_ingest` → **⋯** → **Settings** → name `pl_daily`. Git keeps the history as a rename
+(`fabric/pl_daily.DataPipeline/`). Added after the Phase 1 activities (all arrows **On success**):
+
+| # | Activity (Name) | Settings | Runs after |
+|---|---|---|---|
+| 7 | **Notebook** `Run nb_silver` | Workspace `nyc-analytics`, notebook `nb_silver` | all six Bronze activities: `ForEach taxi month`, `Copy taxi zones`, `Copy monitor zones`, `Run df_ecb`, `Run df_worldbank`, `Run df_openaq` |
+| 8 | **Refresh SQL analytics endpoint** `Refresh silver endpoint` | new connection (**Organizational account**, privacy **Organizational**), workspace `nyc-analytics`, endpoint `lh_silver` | 7 |
+| 9 | **ForEach** `ForEach gold procedure` | see [3.2](#32-load-step-in-the-pipeline--done-in-phase-5) (**Sequential** ✓) | 8 |
+| 10 | **Semantic model refresh** `Refresh model` | new connection *Power BI Semantic Model* (Organizational account), workspace `nyc-analytics`, model `sm_nyc_analytics`, tables empty = whole model | 9 |
+
+**Validate** → **Save** → **Run**. The two refresh activities fail validation with *Connection is required*
+until their connection exists. Do not press **Deactivate activities**.
+
+Lesson: the first commit had only five arrows into `Run nb_silver` (`Run df_openaq` was missing). The run
+showed it: `Run nb_silver` started at 11:45:59, `Run df_openaq` ended at 11:46:58, so the notebook could
+read yesterday's OpenAQ table. Always check `dependsOn` in `pipeline-content.json` after a commit.
+
+First full run (2026-11-20): all activities **Succeeded** in about 8 minutes
+(Bronze ≈ 2 min, `nb_silver` 4 min 54 s, endpoint 6 s, 7 procedures 45 s, model refresh).
+
+### 5.2 Daily schedule ✅
+
+`pl_daily` → **Run** → **Schedule** → **Add schedule**: **Fixed**, **Repeat** **Daily**, time `06:00`,
+time zone **(UTC+05:00) Tashkent**, start 2026-11-21, end 2026-12-31 → **Save**. Fabric commits it as
+`fabric/pl_daily.DataPipeline/.schedules`. Failure e-mail notifications accept only addresses inside the
+tenant (a Gmail address is refused), so failures are checked in **Monitor**.
+
+Why it is safe to run every day: Bronze files are overwritten, dataflows use **Replace**, notebooks
+overwrite Silver tables, Gold procedures `DELETE` then `INSERT`. A rerun gives the same row counts.

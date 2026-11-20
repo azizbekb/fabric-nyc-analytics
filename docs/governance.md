@@ -12,7 +12,18 @@ _TODO: quarantine tables, reasons, how to review them._
 
 ## Refresh schedule
 
-_TODO (Phase 5): one daily orchestration pipeline: ingestion → silver notebooks → gold load._
+One pipeline, `pl_daily`, runs the whole flow **every day at 06:00 Tashkent time** (Fabric schedule,
+committed as `fabric/pl_daily.DataPipeline/.schedules`):
+
+1. Bronze: config copy, taxi months, zone files, three dataflows;
+2. `nb_silver` (starts only after **all** Bronze activities succeed);
+3. refresh of the `lh_silver` SQL analytics endpoint;
+4. Gold stored procedures, one by one, in the order of `gold.load_procedures` in config;
+5. refresh of the semantic model `sm_nyc_analytics`.
+
+Every step depends on the previous one **On success**, so a failure stops all later steps: Gold is never
+loaded from a half-finished Silver run. Every step overwrites or replaces its output, so a rerun
+is safe. Failures are visible in **Monitor** (e-mail alerts work only for addresses inside the tenant).
 
 ## Access
 
