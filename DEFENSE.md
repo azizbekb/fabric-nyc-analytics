@@ -202,7 +202,7 @@ Runtime 1.3 qo'llab-quvvatlashdan chiqarilmoqda (EOSA), standart runtime endi 2.
 
 ## Gold: nega to'liq qayta yuklash (full reload)?
 
-**Savol:** "Nega TRUNCATE + INSERT, incremental emas? Ma'lumot ko'paysa nima o'zgaradi?"
+**Savol:** "Nega DELETE + INSERT, incremental emas? Ma'lumot ko'paysa nima o'zgaradi?"
 
 **Javob:**
 - Hozir ma'lumot kichik: `FactTaxiDaily` ≈ 7 ming qator/oy, 6 oyda ≈ 42 ming qator. To'liq qayta yuklash bir necha soniya oladi.
@@ -251,7 +251,7 @@ Runtime 1.3 qo'llab-quvvatlashdan chiqarilmoqda (EOSA), standart runtime endi 2.
 
 ### Fayllar
 - **`gold_ddl.sql`**: 5 ta dimension va 2 ta fact jadval, kalitlar bilan (`NOT ENFORCED`).
-- **`gold_load.sql`**: har jadval uchun bitta procedure (`load_dim_date`, …, `load_fact_taxi_daily`). Har biri jadvalni to'liq qayta yuklaydi (`TRUNCATE + INSERT`).
+- **`gold_load.sql`**: har jadval uchun bitta procedure (`load_dim_date`, …, `load_fact_taxi_daily`). Har biri jadvalni to'liq qayta yuklaydi (`DELETE + INSERT`). `TRUNCATE` ishlatilmaydi: Fabric Warehouse FK (hatto NOT ENFORCED) bilan bog'langan jadvalni TRUNCATE qilishga ruxsat bermaydi (Msg 4712).
 - **`config/sources.json` → `gold.load_procedures`**: procedure'lar tartibi. Pipeline shu ro'yxat bo'yicha ketma-ket (Sequential) ForEach qiladi.
 
 ### Star schema

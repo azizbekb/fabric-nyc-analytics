@@ -1,8 +1,9 @@
--- Gold load procedures for wh_gold. Each one fully reloads one table from lh_silver (TRUNCATE + INSERT),
+-- Gold load procedures for wh_gold. Each one fully reloads one table from lh_silver (DELETE + INSERT),
 -- so a rerun always gives the same result. The pipeline calls them in the order of config gold.load_procedures.
+-- DELETE, not TRUNCATE: Fabric Warehouse refuses TRUNCATE on a table referenced by a foreign key, even a NOT ENFORCED one.
 -- Every column is alias-qualified (a documented requirement for Warehouse Git sync with cross-item references).
 
-CREATE PROCEDURE dbo.load_dim_date AS
+CREATE OR ALTER PROCEDURE dbo.load_dim_date AS
 BEGIN
     -- Calendar covering every fact day (taxi and air quality), without gaps.
     DECLARE @first date, @last date;
@@ -13,7 +14,7 @@ BEGIN
         SELECT a.[date] FROM lh_silver.dbo.silver_air_quality AS a
     ) AS d;
 
-    TRUNCATE TABLE dbo.DimDate;
+    DELETE FROM dbo.DimDate;
     INSERT INTO dbo.DimDate (date_key, [date], [year], [quarter], [month], month_name, [day], day_of_week, day_name, is_weekend)
     SELECT
         YEAR(c.d) * 10000 + MONTH(c.d) * 100 + DAY(c.d),
@@ -35,28 +36,28 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE dbo.load_dim_zone AS
+CREATE OR ALTER PROCEDURE dbo.load_dim_zone AS
 BEGIN
-    TRUNCATE TABLE dbo.DimZone;
+    DELETE FROM dbo.DimZone;
     INSERT INTO dbo.DimZone (zone_id, borough, zone, service_zone)
     SELECT z.location_id, z.borough, z.zone, z.service_zone
     FROM lh_silver.dbo.silver_taxi_zones AS z;
 END;
 GO
 
-CREATE PROCEDURE dbo.load_dim_location AS
+CREATE OR ALTER PROCEDURE dbo.load_dim_location AS
 BEGIN
-    TRUNCATE TABLE dbo.DimLocation;
+    DELETE FROM dbo.DimLocation;
     INSERT INTO dbo.DimLocation (location_id, location_name, latitude, longitude, zone_id, zone, borough)
     SELECT m.location_id, m.location_name, m.latitude, m.longitude, m.zone_id, m.zone, m.borough
     FROM lh_silver.dbo.silver_monitor_zones AS m;
 END;
 GO
 
-CREATE PROCEDURE dbo.load_dim_fx AS
+CREATE OR ALTER PROCEDURE dbo.load_dim_fx AS
 BEGIN
     -- Only the days of DimDate, so every FX row has a date in the model.
-    TRUNCATE TABLE dbo.DimFX;
+    DELETE FROM dbo.DimFX;
     INSERT INTO dbo.DimFX (date_key, [date], usd_per_eur, is_filled)
     SELECT dd.date_key, fx.[date], fx.usd_per_eur, fx.is_filled
     FROM lh_silver.dbo.silver_fx_daily AS fx
@@ -64,19 +65,19 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE dbo.load_dim_gdp AS
+CREATE OR ALTER PROCEDURE dbo.load_dim_gdp AS
 BEGIN
-    TRUNCATE TABLE dbo.DimGDP;
+    DELETE FROM dbo.DimGDP;
     INSERT INTO dbo.DimGDP ([year], country_code, gdp_usd)
     SELECT g.[year], g.country_code, g.gdp_usd
     FROM lh_silver.dbo.silver_gdp AS g;
 END;
 GO
 
-CREATE PROCEDURE dbo.load_fact_taxi_daily AS
+CREATE OR ALTER PROCEDURE dbo.load_fact_taxi_daily AS
 BEGIN
     -- Void pairs (charge + cancellation) are not trips. Outliers count as trips but are left out of averages.
-    TRUNCATE TABLE dbo.FactTaxiDaily;
+    DELETE FROM dbo.FactTaxiDaily;
     INSERT INTO dbo.FactTaxiDaily (date_key, zone_id, trips, clean_trips, total_fare_usd, total_amount_usd,
                                    total_amount_eur, avg_fare_usd, avg_distance_mi, avg_duration_min)
     SELECT
@@ -103,9 +104,9 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE dbo.load_fact_air_quality_daily AS
+CREATE OR ALTER PROCEDURE dbo.load_fact_air_quality_daily AS
 BEGIN
-    TRUNCATE TABLE dbo.FactAirQualityDaily;
+    DELETE FROM dbo.FactAirQualityDaily;
     INSERT INTO dbo.FactAirQualityDaily (date_key, location_id, parameter, units, avg_value, min_value, max_value, is_low_coverage)
     SELECT
         YEAR(a.[date]) * 10000 + MONTH(a.[date]) * 100 + DAY(a.[date]),
