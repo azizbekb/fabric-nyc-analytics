@@ -8,7 +8,36 @@ Concrete rules (proposed, from profiling): see [data_profile.md](data_profile.md
 
 ## Quarantine
 
-_TODO: quarantine tables, reasons, how to review them._
+Each Silver table with rules has a quarantine table in `lh_silver` with the same columns plus
+`reject_reason`. `nb_silver` asserts that silver rows + quarantine rows = Bronze rows. Rows that are
+usable but doubtful stay in Silver with a flag, so the report can include or exclude them.
+
+Counts after the run of 2026-11-20 (months 2024-01 … 2024-06):
+
+| Table | `reject_reason` | Rows | Rule |
+|---|---|---:|---|
+| `quarantine_taxi_trips` | `negative_amount` | 93,703 | fare or total < 0, and not part of a void pair |
+| | `dropoff_before_pickup` | 300 | dropoff time earlier than pickup |
+| | `pickup_outside_file_month` | 149 | pickup date not in the month of the file |
+| | `duration_over_limit` | 109 | trip longer than `taxi.quality.max_duration_h` (24 h) |
+| | `duplicate` | 36 | same trip key twice; the row with the highest total is kept |
+| `quarantine_air_quality` | `value_null` | 3 | daily value missing |
+| `quarantine_fx` | `value_null` | 62 | ECB row without a rate (holiday) |
+| `quarantine_gdp` | — | 0 | rules `value_null`, `duplicate`; nothing rejected |
+
+Flags in Silver (rows kept):
+
+| Table | Flag | Rows | Meaning, effect in Gold |
+|---|---|---:|---|
+| `silver_taxi_trips` | `is_void` | 445,972 | charge + cancellation pair; excluded from `trips` and revenue |
+| | `is_outlier` | 713 | distance > 100 mi or fare > $1,000; counted in `trips`, excluded from `clean_trips` and averages |
+| | `is_passenger_count_missing` | 2,137,319 | passenger count NULL or 0; value kept, not used in any measure |
+| `silver_air_quality` | `is_low_coverage` | 121 | under 75 % of hours measured; excluded from the PM2.5 / NO2 / O3 measures |
+
+How to review: run [scripts/quarantine_summary.sql](../scripts/quarantine_summary.sql) on the `lh_silver`
+SQL analytics endpoint after a run. A sudden jump in one reason means a source changed. To look at the
+rows, query the quarantine table filtered by `reject_reason` (taxi rows keep `source_file`). Limits live
+in `config/sources.json` (`taxi.quality`, `openaq.min_coverage_pct`), so a rule changes without code changes.
 
 ## Refresh schedule
 
