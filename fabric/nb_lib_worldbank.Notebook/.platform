@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "nb_lib_worldbank"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "6a9c84b6-c064-42f1-8b6b-979d8e98aadb"
+  }
+}

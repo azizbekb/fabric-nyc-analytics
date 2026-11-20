@@ -1,3 +1,16 @@
+# Fabric notebook source
+
+# METADATA ********************
+
+# META {
+# META   "kernel_info": {
+# META     "name": "synapse_pyspark"
+# META   },
+# META   "dependencies": {}
+# META }
+
+# CELL ********************
+
 # Silver transform for World Bank yearly GDP. Needs nb_lib_common.
 from pyspark.sql import functions as F
 
@@ -8,3 +21,10 @@ def transform_gdp(df):
     valid, rejected = split_by_rules(df, [("value_null", F.col("gdp_usd").isNull())])
     kept, duplicates = keep_first(valid, ["country_code", "indicator_id", "year"], [F.desc("gdp_usd")])
     return kept, rejected.unionByName(duplicates)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }

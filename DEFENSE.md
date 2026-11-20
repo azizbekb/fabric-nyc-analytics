@@ -155,14 +155,14 @@ Uchta variantni solishtirdik:
 ## Step D — Silver funksiyalari va testlar
 
 ### Fayllar
-- **`drafts/nb_lib_common.py`**: umumiy yordamchi funksiyalar:
+- **`fabric/nb_lib_common.Notebook/notebook-content.py`**: umumiy yordamchi funksiyalar:
   - `to_snake_case` / `snake_case_columns`: ustun nomlarini bir xil ko'rinishga keltiradi (`PULocationID` → `pu_location_id`);
   - `split_by_rules`: qoidalar ro'yxati bo'yicha qatorni Silver'ga yoki quarantine'ga ajratadi, **birinchi mos kelgan qoida** `reject_reason` bo'ladi;
   - `keep_first`: har bir kalit bo'yicha bitta qatorni qoldiradi, qolganlarini `duplicate` sababi bilan qaytaradi.
-- **`drafts/nb_lib_taxi.py`**: `transform_trips(df, month, quality)` funksiyasi: normalizatsiya → vaqt ustunlari → void juftliklarni belgilash → quarantine qoidalari → dedup → flag'lar. Bundan tashqari `transform_zones`.
-- **`drafts/nb_lib_openaq.py`**: `transform_air_quality` (mahalliy sana, null/manfiy qiymatlar, dedup, `is_low_coverage`) va `transform_monitor_zones`.
-- **`drafts/nb_lib_worldbank.py`**: `transform_gdp` (yilni int'ga o'tkazish, null qiymatni quarantine'ga yuborish).
-- **`drafts/nb_lib_ecb.py`**: `transform_fx`: kalendar to'ldiriladi va dam olish kuni oxirgi mavjud kursni oladi (`is_filled`).
+- **`fabric/nb_lib_taxi.Notebook/notebook-content.py`**: `transform_trips(df, month, quality)` funksiyasi: normalizatsiya → vaqt ustunlari → void juftliklarni belgilash → quarantine qoidalari → dedup → flag'lar. Bundan tashqari `transform_zones`.
+- **`fabric/nb_lib_openaq.Notebook/notebook-content.py`**: `transform_air_quality` (mahalliy sana, null/manfiy qiymatlar, dedup, `is_low_coverage`) va `transform_monitor_zones`.
+- **`fabric/nb_lib_worldbank.Notebook/notebook-content.py`**: `transform_gdp` (yilni int'ga o'tkazish, null qiymatni quarantine'ga yuborish).
+- **`fabric/nb_lib_ecb.Notebook/notebook-content.py`**: `transform_fx`: kalendar to'ldiriladi va dam olish kuni oxirgi mavjud kursni oladi (`is_filled`).
 - **`tests/notebook_loader.py`**: library fayllarni **`%run` kabi** yuklaydi: tartib bilan, bitta umumiy namespace'ga. Avval `fabric/<nom>.Notebook/notebook-content.py` qidiriladi, u bo'lmasa `drafts/<nom>.py` olinadi. Kodning ikkinchi nusxasi yo'q.
 - **`tests/test_*.py`**: 16 ta kichik test, har biri bir nechta qatorli namunalar bilan.
 - **`scripts/map_monitors_to_zones.py`** va **`reference/monitor_zones.csv`**: monitorni taxi zonasiga bog'lash, faqat lokal geopandas bilan.

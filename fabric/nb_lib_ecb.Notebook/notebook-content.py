@@ -1,3 +1,16 @@
+# Fabric notebook source
+
+# METADATA ********************
+
+# META {
+# META   "kernel_info": {
+# META     "name": "synapse_pyspark"
+# META   },
+# META   "dependencies": {}
+# META }
+
+# CELL ********************
+
 # Silver transform for ECB daily USD per 1 EUR. Needs nb_lib_common.
 from pyspark.sql import Window, functions as F
 
@@ -24,3 +37,10 @@ def transform_fx(df, missing_day_rule):
     valid, rejected = split_by_rules(rates, [("value_null", F.col("usd_per_eur").isNull())])
     kept, duplicates = keep_first(valid, ["date"], [F.desc("usd_per_eur")])
     return fill_calendar_last_available(kept.select("date", "usd_per_eur")), rejected.unionByName(duplicates)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }

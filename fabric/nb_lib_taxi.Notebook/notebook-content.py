@@ -1,3 +1,16 @@
+# Fabric notebook source
+
+# METADATA ********************
+
+# META {
+# META   "kernel_info": {
+# META     "name": "synapse_pyspark"
+# META   },
+# META   "dependencies": {}
+# META }
+
+# CELL ********************
+
 # Silver transforms for NYC taxi trips and the zone lookup. Needs nb_lib_common (%run it first).
 from pyspark.sql import Window, functions as F
 
@@ -61,3 +74,10 @@ def transform_trips(df, month, quality):
 
 def transform_zones(df):
     return snake_case_columns(df).withColumn("location_id", F.col("location_id").cast("int"))
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }

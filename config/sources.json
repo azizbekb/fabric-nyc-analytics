@@ -83,6 +83,7 @@
     "per_page": 100,
     "bronze_table": "bronze_worldbank_gdp",
     "silver_table": "silver_gdp",
+    "quarantine_table": "quarantine_gdp",
     "library": "nb_lib_worldbank"
   },
   "ecb": {
@@ -94,6 +95,7 @@
     },
     "bronze_table": "bronze_ecb_fx",
     "silver_table": "silver_fx_daily",
+    "quarantine_table": "quarantine_fx",
     "missing_day_rule": "last_available",
     "library": "nb_lib_ecb"
   },

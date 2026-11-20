@@ -1,7 +1,6 @@
 """Load library notebook source files the way %run does: in order, into one shared namespace.
 
-The source is the Fabric item file fabric/<name>.Notebook/notebook-content.py when it exists,
-otherwise the temporary draft drafts/<name>.py. There is never a second copy of the code.
+The source is the Fabric item file fabric/<name>.Notebook/notebook-content.py (the only copy of the code).
 """
 import importlib.util
 from pathlib import Path
@@ -10,8 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def library_path(name):
-    item = ROOT / "fabric" / f"{name}.Notebook" / "notebook-content.py"
-    return item if item.exists() else ROOT / "drafts" / f"{name}.py"
+    return ROOT / "fabric" / f"{name}.Notebook" / "notebook-content.py"
 
 
 def load_libs(*names):

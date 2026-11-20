@@ -1,3 +1,16 @@
+# Fabric notebook source
+
+# METADATA ********************
+
+# META {
+# META   "kernel_info": {
+# META     "name": "synapse_pyspark"
+# META   },
+# META   "dependencies": {}
+# META }
+
+# CELL ********************
+
 # Silver transforms for OpenAQ daily values and the monitor -> zone reference. Needs nb_lib_common.
 from pyspark.sql import functions as F
 
@@ -21,3 +34,10 @@ def transform_monitor_zones(df):
         "longitude": F.col("longitude").cast("double"),
         "zone_id": F.col("zone_id").cast("int"),
     })
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
