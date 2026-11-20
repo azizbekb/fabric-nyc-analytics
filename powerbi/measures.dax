@@ -2,7 +2,7 @@
 // Averages are weighted by trips, because the fact table already stores daily averages per zone.
 // Air quality measures skip days with low sensor coverage (is_low_coverage).
 DEFINE
-    MEASURE FactTaxiDaily[Trips] = SUM ( FactTaxiDaily[trips] )
+    MEASURE FactTaxiDaily[Total Trips] = SUM ( FactTaxiDaily[trips] )
     MEASURE FactTaxiDaily[Clean Trips] = SUM ( FactTaxiDaily[clean_trips] )
     MEASURE FactTaxiDaily[Revenue USD] = SUM ( FactTaxiDaily[total_amount_usd] )
     MEASURE FactTaxiDaily[Revenue EUR] = SUM ( FactTaxiDaily[total_amount_eur] )
@@ -12,12 +12,12 @@ DEFINE
         DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_distance_mi] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
     MEASURE FactTaxiDaily[Avg Duration min] =
         DIVIDE ( SUMX ( FactTaxiDaily, FactTaxiDaily[avg_duration_min] * FactTaxiDaily[clean_trips] ), [Clean Trips] )
-    MEASURE FactTaxiDaily[Trips per Day] = DIVIDE ( [Trips], DISTINCTCOUNT ( FactTaxiDaily[date_key] ) )
+    MEASURE FactTaxiDaily[Trips per Day] = DIVIDE ( [Total Trips], DISTINCTCOUNT ( FactTaxiDaily[date_key] ) )
     MEASURE FactTaxiDaily[Trips 7d Avg] =
-        AVERAGEX ( DATESINPERIOD ( DimDate[date], MAX ( DimDate[date] ), -7, DAY ), [Trips] )
+        AVERAGEX ( DATESINPERIOD ( DimDate[date], MAX ( DimDate[date] ), -7, DAY ), [Total Trips] )
     MEASURE FactTaxiDaily[Trips MoM %] =
-        VAR Previous = CALCULATE ( [Trips], DATEADD ( DimDate[date], -1, MONTH ) )
-        RETURN DIVIDE ( [Trips] - Previous, Previous )
+        VAR Previous = CALCULATE ( [Total Trips], DATEADD ( DimDate[date], -1, MONTH ) )
+        RETURN DIVIDE ( [Total Trips] - Previous, Previous )
     MEASURE FactAirQualityDaily[PM2.5 Avg] =
         CALCULATE ( AVERAGE ( FactAirQualityDaily[avg_value] ), FactAirQualityDaily[parameter] = "pm25", FactAirQualityDaily[is_low_coverage] = FALSE () )
     MEASURE FactAirQualityDaily[NO2 Avg] =
@@ -27,7 +27,7 @@ DEFINE
     MEASURE FactTaxiDaily[Trips vs PM2.5 Correlation] =
         VAR Days =
             FILTER (
-                ADDCOLUMNS ( VALUES ( DimDate[date] ), "@x", [Trips], "@y", [PM2.5 Avg] ),
+                ADDCOLUMNS ( VALUES ( DimDate[date] ), "@x", [Total Trips], "@y", [PM2.5 Avg] ),
                 NOT ISBLANK ( [@x] ) && NOT ISBLANK ( [@y] )
             )
         VAR MeanX = AVERAGEX ( Days, [@x] )
@@ -43,7 +43,7 @@ EVALUATE
 SUMMARIZECOLUMNS (
     DimDate[month],
     DimDate[month_name],
-    "Trips", [Trips],
+    "Total Trips", [Total Trips],
     "Revenue USD", [Revenue USD],
     "Avg Fare USD", [Avg Fare USD],
     "Trips MoM %", [Trips MoM %],
