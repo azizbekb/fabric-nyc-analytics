@@ -427,6 +427,7 @@ Silver'da 20 237 796 qator bor. Farq (~446 ming) void juftliklar: to'lov va unin
 ### Measure'lar (asosiylari)
 - `Total Trips`, `Revenue USD/EUR`, `Trips per Day`, `Trips 7d Avg` (`DATESINPERIOD`), `Trips MoM %` (`DATEADD`).
 - `Avg Fare/Distance/Duration`: **og'irlikli o'rtacha**. Kunlik o'rtacha shu kunning `clean_trips` soniga ko'paytiriladi. Oddiy o'rtachada 3 ta safarli zona 3 000 ta safarli zona bilan bir xil vaznga ega bo'lib qolardi. Outlier'lar (`clean_trips` dan tashqari) o'rtachaga kirmaydi.
+- `GDP USD bn`: `TREATAS(VALUES(DimDate[year]), DimGDP[year])` bilan tanlangan sanalarning yiliga filtrlanadi. Bog'lanish DimDate → DimGDP bo'lgani uchun filtr sanadan GDP tomonga o'tmaydi. TREATAS'siz kartochka 66 yilning yig'indisini (607K bn) ko'rsatgan edi.
 - `PM2.5/NO2/O3 Avg`: `is_low_coverage` kunlar hisobga olinmaydi.
 - `Trips vs PM2.5 Correlation`: kunlar bo'yicha Pearson koeffitsienti (−1 … 1), DAX'da qo'lda hisoblangan (kovariatsiya / standart og'ishlar).
 

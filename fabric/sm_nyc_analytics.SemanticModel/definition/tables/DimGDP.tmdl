@@ -2,7 +2,7 @@ table DimGDP
 	lineageTag: 43537b83-78aa-4232-bfed-31c61edb69d9
 	sourceLineageTag: [dbo].[DimGDP]
 
-	measure 'GDP USD bn' = DIVIDE ( SUM ( DimGDP[gdp_usd] ), 1e9 )
+	measure 'GDP USD bn' = DIVIDE ( CALCULATE ( SUM ( DimGDP[gdp_usd] ), TREATAS ( VALUES ( DimDate[year] ), DimGDP[year] ) ), 1e9 )
 		formatString: #,0
 		lineageTag: f9d2c4fc-5be9-4030-807b-700e34952390
 
