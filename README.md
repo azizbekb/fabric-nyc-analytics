@@ -82,8 +82,30 @@ the config from GitHub at the start of each run. Details: [docs/setup_fabric.md]
 
 ## How to add a new source
 
-_TODO: full steps when the pipelines exist. Shape: add a block to `config/sources.json`,
-one library notebook `nb_lib_<name>` with a pure transform function plus a test, one Gold table._
+Example: a new API source `<name>`. No existing code changes, only additions.
+
+1. **Config.** Add a block to `config/sources.json`: `type`, `base_url`, `path`, `bronze_table`,
+   `silver_table`, `quarantine_table`, `library` and any quality limits. Push.
+2. **Bronze.** API: create Dataflow Gen2 `df_<name>` that reads `Files/config/sources.json` from
+   `lh_bronze` (same first steps as `df_worldbank`), writes the `bronze_table` with **Replace**, and adds
+   `source` and `load_ts`. File: add a **Copy data** activity in `pl_daily` with paths from config.
+   Record the Bronze columns in [docs/sources.md](docs/sources.md#bronze-contract-for-api-tables).
+3. **Silver rules.** Create notebook `nb_lib_<name>` with a pure function
+   `transform_<name>(df) -> (silver, rejected)`, built from `split_by_rules` and `keep_first` in
+   `nb_lib_common`, so every rejected row gets a `reject_reason`. Add `tests/test_<name>.py` and run `pytest`.
+4. **Silver run.** In `nb_silver` add `%run nb_lib_<name>` and one cell like the World Bank one:
+   ```python
+   src = cfg["<name>"]
+   raw = bronze_table(src)
+   save_split(src, *transform_<name>(raw), raw.count())   # asserts silver + quarantine = Bronze rows
+   ```
+5. **Pipeline.** Add the dataflow activity to `pl_daily` and an **On success** arrow from it to `Run nb_silver`.
+6. **Gold (if needed).** Create the table and a `load_<table>` procedure in `wh_gold`, then add the
+   procedure name to `gold.load_procedures` in config. The pipeline itself does not change.
+7. **Docs.** Add the tables to [docs/data_dictionary.md](docs/data_dictionary.md) and [docs/lineage.md](docs/lineage.md).
+8. Commit from Fabric (Source control), then `git pull` locally.
+
+A new taxi month needs only step 1: add it to `taxi.months`.
 
 ### When air quality monitors change
 

@@ -1,10 +1,22 @@
 # Data Dictionary
 
-Every table and column per layer: type, meaning, source. Filled in as tables are built.
+Every table and column per layer: type, meaning, source.
 
 ## Bronze
 
-_TODO (Phase 1)._ API table columns are fixed in [sources.md](sources.md#bronze-contract-for-api-tables).
+Lakehouse `lh_bronze`. Raw data, unchanged. Files are byte-for-byte copies; API tables are flattened
+by the dataflows and get `source` and `load_ts`. API table columns: [sources.md](sources.md#bronze-contract-for-api-tables).
+
+| Object | Kind | Content | Written by |
+|---|---|---|---|
+| `Files/taxi/yellow_tripdata_<month>.parquet` | file | TLC trip records, one file per month in `taxi.months` | `pl_daily` → `Copy taxi month` |
+| `Files/taxi_zones/taxi_zone_lookup.csv` | file | 265 TLC zones | `pl_daily` → `Copy taxi zones` |
+| `Files/reference/monitor_zones.csv` | file | monitor → zone mapping (copy of `reference/monitor_zones.csv`) | `pl_daily` → `Copy monitor zones` |
+| `Files/config/sources.json` | file | copy of the repo config, read by the pipeline, dataflows and notebooks | `pl_daily` → `Copy config` |
+| `Files/secrets/openaq_api_key.txt` | file | OpenAQ key, uploaded by hand, never in Git | manual |
+| `bronze_openaq_measurements` | table | one row per sensor and day | `df_openaq` |
+| `bronze_worldbank_gdp` | table | one row per year | `df_worldbank` |
+| `bronze_ecb_fx` | table | one row per ECB working day | `df_ecb` |
 
 ## Silver
 
@@ -53,7 +65,7 @@ Source: `reference/monitor_zones.csv`. `location_id` int, `location_name`, `lati
 ### silver_gdp
 
 Source: World Bank. `country_code`, `indicator_id`, `year` int, `gdp_usd` double (current USD).
-Quarantine reasons: `value_null`, `duplicate`.
+Quarantine table `quarantine_gdp`, reasons: `value_null`, `duplicate`.
 
 ### silver_fx_daily
 
@@ -64,6 +76,9 @@ Source: ECB. One row per calendar day.
 | date | date | calendar day |
 | usd_per_eur | double | USD for 1 EUR; on days without a rate, the last earlier rate |
 | is_filled | boolean | true when the rate was carried forward (weekend / holiday) |
+
+Quarantine table `quarantine_fx` (Bronze columns + `reject_reason`), reasons: `value_null` (ECB rows
+without a rate), `duplicate`. Silver has one row per calendar day, so its count differs from Bronze.
 
 ## Gold
 
@@ -81,3 +96,26 @@ Warehouse `wh_gold`. DDL: `fabric/wh_gold.Warehouse/dbo/Tables/`; load procedure
 | FactAirQualityDaily | day × monitor × pollutant | parameter, units, avg_value, min_value, max_value, is_low_coverage | silver_air_quality |
 
 `total_amount_eur = total_amount_usd / usd_per_eur` of the same day (weekends use the last available rate).
+
+## Semantic model
+
+`sm_nyc_analytics`, Direct Lake on `wh_gold`. Definition: `fabric/sm_nyc_analytics.SemanticModel/definition/`
+(TMDL). `DimDate` is marked as the date table.
+
+Relationships (all many-to-one, single direction): `FactTaxiDaily[date_key]` → `DimDate`,
+`FactTaxiDaily[zone_id]` → `DimZone`, `FactAirQualityDaily[date_key]` → `DimDate`,
+`FactAirQualityDaily[location_id]` → `DimLocation`, `DimFX[date_key]` → `DimDate`, `DimDate[year]` → `DimGDP`.
+
+| Measure | Table | Meaning |
+|---|---|---|
+| Total Trips | FactTaxiDaily | sum of `trips` (void pairs excluded) |
+| Clean Trips | FactTaxiDaily | sum of `clean_trips` (no outliers) |
+| Revenue USD / Revenue EUR | FactTaxiDaily | sum of `total_amount_usd` / `total_amount_eur` |
+| Avg Fare USD, Avg Distance mi, Avg Duration min | FactTaxiDaily | daily averages weighted by `clean_trips` |
+| Trips per Day | FactTaxiDaily | Total Trips / number of days |
+| Trips 7d Avg | FactTaxiDaily | average of daily trips over the last 7 days |
+| Trips MoM % | FactTaxiDaily | change versus the previous month |
+| Trips vs PM2.5 Correlation | FactTaxiDaily | Pearson correlation of daily trips and daily PM2.5 |
+| PM2.5 Avg, NO2 Avg, O3 Avg | FactAirQualityDaily | average daily value, low-coverage days excluded |
+| USD per EUR | DimFX | average rate |
+| GDP USD bn | DimGDP | GDP of the selected years, in billions (`TREATAS` from `DimDate[year]`) |
