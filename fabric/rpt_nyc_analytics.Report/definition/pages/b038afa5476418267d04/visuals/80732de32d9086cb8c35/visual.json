@@ -1,0 +1,140 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.15.0/schema.json",
+  "name": "80732de32d9086cb8c35",
+  "position": {
+    "x": 1067.1526195899773,
+    "y": 0,
+    "z": 2000,
+    "height": 496.40091116173124,
+    "width": 852.84738041002277,
+    "tabOrder": 2000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimLocation"
+                    }
+                  },
+                  "Property": "location_name"
+                }
+              },
+              "queryRef": "DimLocation.location_name",
+              "nativeQueryRef": "location_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimLocation"
+                    }
+                  },
+                  "Property": "borough"
+                }
+              },
+              "queryRef": "DimLocation.borough",
+              "nativeQueryRef": "borough"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactAirQualityDaily"
+                    }
+                  },
+                  "Property": "PM2.5 Avg"
+                }
+              },
+              "queryRef": "FactAirQualityDaily.PM2.5 Avg",
+              "nativeQueryRef": "PM2.5 Avg"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactAirQualityDaily"
+                    }
+                  },
+                  "Property": "NO2 Avg"
+                }
+              },
+              "queryRef": "FactAirQualityDaily.NO2 Avg",
+              "nativeQueryRef": "NO2 Avg"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "dd07ced33079c207499a",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "DimLocation"
+              }
+            },
+            "Property": "location_name"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "4f6f7140609d76072181",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "DimLocation"
+              }
+            },
+            "Property": "borough"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "27c8f6f32219a105d85a",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "FactAirQualityDaily"
+              }
+            },
+            "Property": "PM2.5 Avg"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "c92d4c6003ee1618080b",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "FactAirQualityDaily"
+              }
+            },
+            "Property": "NO2 Avg"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

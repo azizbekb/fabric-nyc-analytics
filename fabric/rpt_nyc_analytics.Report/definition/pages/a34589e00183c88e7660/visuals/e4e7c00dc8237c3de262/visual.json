@@ -1,0 +1,66 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.15.0/schema.json",
+  "name": "e4e7c00dc8237c3de262",
+  "position": {
+    "x": 0,
+    "y": 0,
+    "z": 3,
+    "height": 299.58997722095671,
+    "width": 1016.8564920273349,
+    "tabOrder": 3
+  },
+  "visual": {
+    "visualType": "cardVisual",
+    "query": {
+      "queryState": {
+        "Data": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactTaxiDaily"
+                    }
+                  },
+                  "Property": "Trips vs PM2.5 Correlation"
+                }
+              },
+              "queryRef": "FactTaxiDaily.Trips vs PM2.5 Correlation",
+              "nativeQueryRef": "Trips vs PM2.5 Correlation"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FactTaxiDaily"
+                    }
+                  },
+                  "Property": "Revenue EUR"
+                }
+              },
+              "queryRef": "FactTaxiDaily.Revenue EUR",
+              "nativeQueryRef": "Revenue EUR"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimGDP"
+                    }
+                  },
+                  "Property": "GDP USD bn"
+                }
+              },
+              "queryRef": "DimGDP.GDP USD bn",
+              "nativeQueryRef": "GDP USD bn"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

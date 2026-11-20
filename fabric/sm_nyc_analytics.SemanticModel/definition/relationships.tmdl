@@ -15,8 +15,6 @@ relationship 1aa7ce26-4b15-5012-12f7-c1f86957cf37
 	toColumn: DimLocation.location_id
 
 relationship 0c8770b4-b002-fe18-29a4-a05ccee6298f
-	crossFilteringBehavior: bothDirections
-	fromCardinality: one
 	fromColumn: DimFX.date_key
 	toColumn: DimDate.date_key
 

@@ -2,12 +2,12 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.15.0/schema.json",
   "name": "2dd0b1b4a37481ddd423",
   "position": {
-    "x": 868.15489749430526,
+    "x": 0,
     "y": 0,
-    "z": 2001,
-    "height": 299.58997722095671,
-    "width": 1051.8451025056947,
-    "tabOrder": 2001
+    "z": 3000,
+    "height": 251.48063781321184,
+    "width": 868.15489749430526,
+    "tabOrder": 3000
   },
   "visual": {
     "visualType": "slicer",
@@ -54,6 +54,67 @@
         }
       ]
     },
+    "syncGroup": {
+      "groupName": "month_name",
+      "fieldChanges": true,
+      "filterChanges": true
+    },
     "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "5fcda7e20102ae0e7ba5",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "DimDate"
+              }
+            },
+            "Property": "month_name"
+          }
+        },
+        "type": "Advanced",
+        "filter": {
+          "Version": 2,
+          "From": [
+            {
+              "Name": "d",
+              "Entity": "DimDate",
+              "Type": 0
+            }
+          ],
+          "Where": [
+            {
+              "Condition": {
+                "Not": {
+                  "Expression": {
+                    "Comparison": {
+                      "ComparisonKind": 0,
+                      "Left": {
+                        "Column": {
+                          "Expression": {
+                            "SourceRef": {
+                              "Source": "d"
+                            }
+                          },
+                          "Property": "month_name"
+                        }
+                      },
+                      "Right": {
+                        "Literal": {
+                          "Value": "null"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   }
 }
