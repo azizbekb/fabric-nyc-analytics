@@ -467,6 +467,161 @@
             ]
           }
         ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "9d6cb1ce-8bc9-9ffd-45a2-6b0e87d1499a",
+          "workspaceId": "00000000-0000-0000-0000-000000000000"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Run nb_silver",
+        "dependsOn": [
+          {
+            "activity": "ForEach taxi month",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Copy taxi zones",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Copy monitor zones",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Run df_ecb",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Run df_worldbank",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "RefreshSqlEndpoint",
+        "typeProperties": {
+          "workspaceId": "6e107ded-9300-4274-a3af-9ca212441d27",
+          "sqlEndpointId": "740be4b0-dcb1-46b4-8457-192bd781713d",
+          "recreateTables": false
+        },
+        "externalReferences": {
+          "connection": "92029a43-b170-40dc-b5c0-78e4596c106a"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Refresh silver endpoint",
+        "dependsOn": [
+          {
+            "activity": "Run nb_silver",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "ForEach",
+        "typeProperties": {
+          "isSequential": true,
+          "items": {
+            "value": "@activity('Lookup config').output.firstRow.gold.load_procedures",
+            "type": "Expression"
+          },
+          "activities": [
+            {
+              "type": "SqlServerStoredProcedure",
+              "typeProperties": {
+                "storedProcedureName": {
+                  "value": "@concat('dbo.', item())",
+                  "type": "Expression"
+                }
+              },
+              "linkedService": {
+                "name": "wh_gold",
+                "properties": {
+                  "type": "DataWarehouse",
+                  "typeProperties": {
+                    "artifactId": "7686a7a0-0078-8502-4d8b-9ec14e048b63",
+                    "endpoint": "tgki4u3sv4vulnf66h76vy6ipe-5v6ra3qasn2efi5ptsrbera5e4.datawarehouse.fabric.microsoft.com",
+                    "workspaceId": "00000000-0000-0000-0000-000000000000"
+                  },
+                  "annotations": []
+                }
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Run gold procedure",
+              "dependsOn": []
+            }
+          ]
+        },
+        "name": "ForEach gold procedure",
+        "dependsOn": [
+          {
+            "activity": "Refresh silver endpoint",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "PBISemanticModelRefresh",
+        "typeProperties": {
+          "method": "POST",
+          "groupId": "00000000-0000-0000-0000-000000000000",
+          "datasetId": "cf8992db-56b9-8bb0-445b-3c529913ae67",
+          "commitMode": "Transactional",
+          "waitOnCompletion": true,
+          "operationType": "SemanticModelRefresh"
+        },
+        "externalReferences": {
+          "connection": "d90ab1d4-1929-4928-8151-e8f52dac0a83"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Refresh model",
+        "dependsOn": [
+          {
+            "activity": "ForEach gold procedure",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
     ]
   }
