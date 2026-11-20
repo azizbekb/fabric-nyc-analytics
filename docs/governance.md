@@ -56,7 +56,22 @@ is safe. Failures are visible in **Monitor** (e-mail alerts work only for addres
 
 ## Access
 
-_TODO: workspace roles; RLS optional._
+Today the workspace `nyc-analytics` has one member, the project owner, with the **Admin** role
+(single-person course project). The pipeline connections (SQL endpoint refresh, semantic model refresh)
+use the owner's organizational account, so the schedule runs with the owner's rights.
+
+Role model for a team (workspace → **Manage access**):
+
+| Who | Role | Can |
+|---|---|---|
+| Platform owner | Admin | everything, including access and Git settings |
+| Data engineers | Contributor | edit pipelines, notebooks, warehouse; commit to Git |
+| Analysts / report readers | the report shared alone (or Viewer) | read the report; Viewer also reads tables through the SQL endpoints |
+
+Note: Admin, Member and Contributor can read Lakehouse files through OneLake, so the OpenAQ key file is
+visible to them (see [Secrets](#secrets)). Keep those roles for people who build the platform; report
+readers get the report, not an editing role. Row-level security is optional in the brief and not used: all data is public and every
+reader may see every borough.
 
 ## Secrets
 
