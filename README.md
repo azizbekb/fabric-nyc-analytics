@@ -64,7 +64,7 @@ python scripts/check_gold.py 2024-01   # needs data/yellow_tripdata_2024-01.parq
 
 The workspace uses **Fabric Runtime 2.0** (Spark 4.1, Python 3.13, Delta 4.2). Runtime 1.3 is in
 end-of-support. Local tests use the same Spark version (`pyspark==4.1.1`).
-_TODO (Phase 0): record where it is set (Workspace settings → Data Engineering/Science → Spark settings → Environment)._
+Set in **Workspace settings** → **Data Engineering/Science** → **Spark settings** → **Environment** → **Runtime version** 2.0.
 
 ## How to run
 
