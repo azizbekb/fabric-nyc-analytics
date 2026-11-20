@@ -440,6 +440,10 @@ Silver'da 20 237 796 qator bor. Farq (~446 ming) void juftliklar: to'lov va unin
 - Yanvar: DAX `Total Trips` = 2 896 290, `Revenue USD` = 79 563 881.08. Bu lokal `scripts/check_gold.py` natijasi bilan bir xil.
 - Slicer'dagi "(Blank)": SQL (FK `NOT ENFORCED` bo'lgani uchun "yetim" kalitlarni tekshirdik) va DAX bilan bog'lanmagan qatorlar 0 ekanini isbotladik. Demak bu Direct Lake'ning texnik "noma'lum a'zo" qatori, unga hech qanday qator bog'lanmagan. Slicer'da **is not blank** filtri bilan yashirildi.
 
+### Natija (6 oy, 2024-01 … 06)
+- Revenue EUR €517M, GDP (2024) ~29 000 bn USD.
+- **Trips vs PM2.5 korrelyatsiyasi: −0.04 (6 oy)**: amalda bog'liqlik yo'q. Oylar bo'yicha qiymat har xil: fevral +0.20, aprel −0.15, ya'ni yo'nalishi ham o'zgarib turadi. Xulosa: kunlik taksi safarlari soni PM2.5 ni tushuntirmaydi. Havo sifatiga ob-havo (shamol, yomg'ir, harorat) va boshqa manbalar ko'proq ta'sir qiladi. Korrelyatsiya sabab-oqibatni isbotlamaydi.
+
 ### Ehtimoliy savollar
 1. *Nega Direct Lake, Import emas?* Ma'lumot nusxasi yo'q, Gold yangilangach model refresh (framing) bilan darhol yangi holatni ko'radi.
 2. *Nega o'rtacha narx og'irlikli?* (yuqoriga qarang).
