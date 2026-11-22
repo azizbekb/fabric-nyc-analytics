@@ -475,6 +475,11 @@ Bronze (6 activity) → `Run nb_silver` → `Refresh silver endpoint` → `ForEa
 - **Nega kuniga bir marta qayta ishga tushirish xavfsiz?** Har bir qadam o'z natijasini qayta yozadi (Replace, overwrite, `DELETE`+`INSERT`), shuning uchun dublikat paydo bo'lmaydi.
 - **Xato bo'lsa nima bo'ladi?** Keyingi qadamlar ishlamaydi, shuning uchun Gold hech qachon chala Silver'dan yuklanmaydi. Masalan, `df_openaq` xato bersa, Gold va hisobot kechagi holatida qoladi. Xatolar **Monitor** da ko'rinadi. Email xabarnoma faqat tenant ichidagi manzilga ishlaydi.
 
+### Asosiy tushunchalar
+- **Delta Lake (Delta jadval)**: Parquet fayllar va `_delta_log` papkasi. Log har bir yozishni tranzaksiya sifatida saqlaydi (ACID), shuning uchun yozish yarmida to'xtasa, o'quvchi eski to'liq versiyani ko'radi. Sxema ham log'da turadi va tarix (time travel) saqlanadi. Lakehouse jadvallari ham, Warehouse ham OneLake'da shu formatda saqlanadi, shuning uchun Warehouse `lh_silver` ni nusxa olmasdan o'qiy oladi.
+- **Refresh qanday ishlaydi**: schedule har kuni soat 06:00 da `pl_daily` ni ishga tushiradi. Pipeline avval config'ni GitHub'dan oladi, keyin Bronze'ni qayta yozadi (fayllar ustidan yozish, dataflow'lar **Replace**). Shundan so'ng `nb_silver` Silver'ni to'liq qayta yozadi (overwrite). Keyin SQL endpoint yangilanadi, procedure'lar Gold'ni `DELETE` + `INSERT` bilan qayta yuklaydi. Oxirida Direct Lake modeli yangi Delta versiyaga ulanadi (framing).
+- **Idempotency**: bir xil kirish ma'lumoti bilan necha marta ishlatilsa ham, natija bir xil bo'ladi (dublikat paydo bo'lmaydi).
+
 ### Tuzoq (haqiqatda bo'lgan)
 Birinchi commit'da `Run df_openaq` → `Run nb_silver` strelkasi yo'q edi. Run vaqtlari buni ko'rsatdi: notebook 11:45:59 da boshlandi, `df_openaq` esa 11:46:58 da tugadi. Bu Git'dagi `dependsOn` ni o'qib topildi va tuzatildi. Saboq: commit'dan keyin pipeline JSON'ini tekshirish kerak.
 
@@ -485,7 +490,10 @@ Birinchi to'liq run (2026-11-20) taxminan 8 daqiqa davom etdi, hammasi **Succeed
 1. Pipeline'ning qaysi qismi parallel, qaysi qismi ketma-ket ishlaydi va nega?
 2. Agar `df_openaq` xato bersa, Power BI'da nima ko'rinadi?
 3. Schedule vaqtini qayerdan o'zgartirasiz va bu Git'da qayerda ko'rinadi?
+4. Nega har kuni to'liq qayta yuklash (full reload), incremental emas? (Javob: 6 oy kichik hajm, oddiy va idempotent. Ma'lumot ko'paysa, oy bo'yicha `replaceWhere` qilinadi, Phase 2 ga qarang.)
+5. Pipeline sizning akkauntingiz nomidan ishlaydi. Siz kompaniyadan ketsangiz nima bo'ladi? (Javob: connection'lar ishlamay qoladi. Production'da service principal yoki workspace identity ishlatiladi.)
 
 ### Live change mashqlari
 1. Schedule'ni 06:00 dan 07:30 ga o'zgartiring (**Run → Schedule → Edit**) → commit → `.schedules` faylidagi o'zgarishni ko'rsating.
 2. `taxi.months` ga `2024-07` ni qo'shing → push → `pl_daily` → **Run**. Pipeline ham, kod ham o'zgarmaydi.
+3. Pipeline'ga xato qo'shib ko'ring: `nb_silver` dagi config yo'lini vaqtincha noto'g'ri qiling → **Run** → keyingi qadamlar (`Refresh silver endpoint`, Gold) ishlamaganini Monitor'da ko'rsating → qaytarib tuzating.
