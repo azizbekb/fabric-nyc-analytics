@@ -485,6 +485,7 @@ Birinchi commit'da `Run df_openaq` → `Run nb_silver` strelkasi yo'q edi. Run v
 
 ### Natija
 Birinchi to'liq run (2026-11-20) taxminan 8 daqiqa davom etdi, hammasi **Succeeded**: `nb_silver` 4m 54s, 7 procedure 45s.
+Schedule bo'yicha 2026-11-21 dan boshlab har kuni 06:00 da ishlagan run'larning hammasi **Succeeded** (Monitor'da 2026-11-24 da tekshirildi).
 
 ### Ehtimoliy savollar
 1. Pipeline'ning qaysi qismi parallel, qaysi qismi ketma-ket ishlaydi va nega?
